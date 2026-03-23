@@ -1,7 +1,7 @@
 "use client";
 // ============================================================
 // ChaiRaise CRM — Full Application Component
-// Auto-generated from Ohr_Vishua_Attio_CRM.html
+// ChaiRaise CRM — AI-Native Jewish Fundraising Platform
 // ============================================================
 
 import {useState,useEffect,useCallback,useRef,useMemo,createContext,useContext} from "react";
@@ -82,14 +82,14 @@ const ACT_TYPES=[
 // MULTI-ORG TENANT SYSTEM — org-scoped storage for commercialization
 // ============================================================
 const DEFAULT_ORG={
-  id:"ohr_vishua",name:"Ohr Vishua",
-  tagline:"Haifa Hesder Yeshiva",
-  logo:"OV",accentColor:"#f59e0b",
-  currency:"USD",timezone:"Asia/Jerusalem",
-  website:"https://ohrvishua.org",
-  org_type:"yeshiva",
+  id:"chairaise_default",name:"ChaiRaise",
+  tagline:"AI-Native Fundraising CRM",
+  logo:"CR",accentColor:"#f59e0b",
+  currency:"USD",timezone:"America/New_York",
+  website:"",
+  org_type:"",
   ein:"",
-  mission:"Building a Torah learning ecosystem for Haifa's tech boom — a 360-student Hesder Yeshiva integrating olim, mechina students, and avrechim in Israel's innovation capital.",
+  mission:"",
   created:new Date().toISOString()
 };
 // Org types available for onboarding
@@ -129,13 +129,8 @@ const orgPrefix=()=>getActiveOrg().id+"_";
 const sGet=(k,fb)=>{try{const v=localStorage.getItem(orgPrefix()+k);return v?JSON.parse(v):fb}catch{return fb}};
 const sSet=(k,v)=>{try{localStorage.setItem(orgPrefix()+k,JSON.stringify(v))}catch(e){console.warn("Storage:",e)}};
 // Legacy key migration — read from old keys if org-scoped key is empty
-const sGetMigrate=(k,fb)=>{
-  const orgVal=sGet(k,null);
-  if(orgVal!==null)return orgVal;
-  // Try legacy key (ov2_ prefix)
-  try{const v=localStorage.getItem("ov2_"+k);if(v){const parsed=JSON.parse(v);sSet(k,parsed);return parsed}}catch{}
-  return fb;
-};
+// sGetMigrate — reads org-scoped key (legacy ov2_ migration removed for ChaiRaise)
+const sGetMigrate=(k,fb)=>sGet(k,fb);
 const fmt$=(n)=>(!n||isNaN(n))?"—":"$"+Number(n).toLocaleString("en-US");
 const fmtD=(d)=>d?new Date(d).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"—";
 const fmtN=(n)=>(!n||isNaN(n))?"—":Number(n).toLocaleString("en-US");
@@ -213,8 +208,8 @@ function AuthScreen({onLogin}){
 
   return(<div className="auth-overlay">
     <div className="auth-card">
-      <div className="auth-logo">OV</div>
-      <h2>Ohr Vishua CRM</h2>
+      <div className="auth-logo">CR</div>
+      <h2>ChaiRaise</h2>
       <div className="auth-sub">AI-Native Fundraising Platform</div>
 
       <div className="auth-tabs">
@@ -255,7 +250,7 @@ function AuthScreen({onLogin}){
             // Quick demo login — create admin if none exists
             const users=getUsers();
             if(!users.length){
-              const admin={id:1,name:"Admin User",email:"admin@ohrvishua.org",role:"admin",passwordHash:hashPassword("admin123"),created:new Date().toISOString(),avatar:"AU"};
+              const admin={id:1,name:"Demo User",email:"demo@chairaise.com",role:"admin",passwordHash:hashPassword("demo123"),created:new Date().toISOString(),avatar:"DU"};
               users.push(admin);setUsers(users);
             }
             const session={...users[0],loginAt:new Date().toISOString()};
@@ -1055,13 +1050,14 @@ function BatchEmailComposer({donors,apiKey,onSend,onClose}){
     setLoading(true);
     const t=TEMPLATES.find(x=>x.id===tmpl);
     // Generate a generic template
-    const prompt=`You are a fundraising copywriter for Ohr Vishua, a Hesder Yeshiva in Haifa. Write a compelling outreach email template.\nTemplate: ${t?.name} — ${t?.segment}\nHooks: ${t?.hooks}\n\nWrite the email body with merge fields: {name}, {community}, {city}. 150-200 words. Warm, personal, compelling. End with CTA for a meeting. Sign as "Yuri Kruman, Ohr Vishua Development".`;
+    const bOrg=getActiveOrg();const bProfile=getOrgProfile();
+    const prompt=`You are a fundraising copywriter for ${bOrg.name}${bProfile.mission?" — "+bProfile.mission:""}. Write a compelling outreach email template.\nTemplate: ${t?.name} — ${t?.segment}\nHooks: ${t?.hooks}\n\nWrite the email body with merge fields: {name}, {community}, {city}. 150-200 words. Warm, personal, compelling. End with CTA for a meeting. Sign as "${bOrg.name} Development Team".`;
     try{
       const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1024,messages:[{role:"user",content:prompt}]})});
       if(!res.ok)throw new Error(`API ${res.status}`);
       const data=await res.json();
       setBody(data.content?.[0]?.text||"");
-      setSubj((t?.subject||"Ohr Vishua — {name}").replace("{School}","").replace("{Synagogue}","").replace("{Family}",""));
+      setSubj((t?.subject||getActiveOrg().name+" — {name}").replace("{School}","").replace("{Synagogue}","").replace("{Family}",""));
     }catch(e){alert("AI Error: "+e.message)}finally{setLoading(false)}
   };
 
@@ -1213,7 +1209,7 @@ function TeamDashboard({acts,donors,users}){
 // ============================================================
 // CAMPAIGN MANAGEMENT — multiple fundraising campaigns per org
 // ============================================================
-const DEFAULT_CAMPAIGN={id:"main",name:"Main Campaign",goal:12000000,start:"2024-01-01",end:"2029-01-01",status:"active",description:"$12M 5-year Ohr Vishua campaign"};
+const DEFAULT_CAMPAIGN={id:"main",name:"Main Campaign",goal:0,start:new Date().toISOString().slice(0,10),end:"",status:"active",description:"Default fundraising campaign"};
 
 // ============================================================
 // CSV PARSER — robust CSV parsing for bulk import
@@ -1924,7 +1920,7 @@ function DataLoader({onLoad}){
   const handleFile=(f)=>{const r=new FileReader();r.onload=(e)=>{try{const d=JSON.parse(e.target.result);onLoad(Array.isArray(d)?d:(d.donors||d.records||[d]))}catch(err){alert("Invalid JSON: "+err.message)}};r.readAsText(f)};
   const loadDemo=()=>onLoad(generateDemoData());
   return(<div className="loader-overlay"><div className="loader-card">
-    <h2>⚡ Ohr Vishua AI CRM</h2><p>Load your donor data (JSON) or try the demo.</p>
+    <h2>⚡ ChaiRaise CRM</h2><p>Load your donor data (JSON) or try the demo.</p>
     <div className="drop-zone" onClick={()=>fRef.current?.click()}><p>📁 Click to upload JSON file</p>
       <input ref={fRef} type="file" accept=".json" style={{display:"none"}} onChange={e=>e.target.files[0]&&handleFile(e.target.files[0])}/></div>
     <div style={{color:"var(--text3)",margin:"8px 0",fontSize:"11px"}}>— or paste JSON —</div>
@@ -2217,7 +2213,7 @@ function EmailComposer({donor:d,apiKey,pplxKey,aiProvider,onClose,onSend}){
   const[tmpl,setTmpl]=useState(d?aiTemplate(d):"T-E");
   const[subj,setSubj]=useState("");const[body,setBody]=useState("");
   const[loading,setLoading]=useState(false);const[err,setErr]=useState("");
-  // Read org profile for dynamic context (not hardcoded to Ohr Vishua)
+  // Read org profile for dynamic context (personalized per org)
   const orgProfile=sGet("org_profile",{});
   const org=getActiveOrg();
   const gen=async()=>{
@@ -2662,7 +2658,7 @@ function NetworkDashboard({donors,graphContacts,setGraphContacts,graphData,setGr
       const g=buildGraph(contacts,donors);
       setGraphData(g);
       setGraphBuilding(false);
-      sSet("ov2_graph_data_summary",{
+      sSet("graph_data_summary",{
         totalContacts:contacts.length,
         totalEdges:g.edges.length,
         matchedDonors:g.matchedDonorIds.size,
@@ -2698,7 +2694,7 @@ function NetworkDashboard({donors,graphContacts,setGraphContacts,graphData,setGr
         });
         const merged=[...existing.values()];
         setGraphContacts(merged);
-        sSet("ov2_graph_contacts",merged);
+        sSet("graph_contacts",merged);
         rebuildGraph(merged);
         setImportStats({total:parsed.length,new:newCount,merged:merged.length,source:"vcf"});
       }catch(err){setImportStats({error:"VCF parse error: "+err.message})}
@@ -2729,7 +2725,7 @@ function NetworkDashboard({donors,graphContacts,setGraphContacts,graphData,setGr
         });
         const merged=[...existing.values()];
         setGraphContacts(merged);
-        sSet("ov2_graph_contacts",merged);
+        sSet("graph_contacts",merged);
         rebuildGraph(merged);
         setImportStats({total:parsed.length,new:newCount,merged:merged.length,source:"linkedin"});
       }catch(err){setImportStats({error:"CSV parse error: "+err.message})}
@@ -2802,10 +2798,10 @@ function NetworkDashboard({donors,graphContacts,setGraphContacts,graphData,setGr
       if(allContacts.length>graphContacts.length||!graphData){
         setGraphContacts(allContacts);
         // Try localStorage — if too large, store only essential fields
-        try{sSet("ov2_graph_contacts",allContacts)}catch(e){
+        try{sSet("graph_contacts",allContacts)}catch(e){
           // Compress: strip non-essential fields for storage
           const slim=allContacts.map(c=>({id:c.id,source:c.source,name:c.name,emails:c.emails?.slice(0,2)||[],phones:c.phones?.slice(0,2)||[],org:c.org||"",title:c.title||""}));
-          try{sSet("ov2_graph_contacts",slim)}catch{console.warn("Graph contacts too large for localStorage")}
+          try{sSet("graph_contacts",slim)}catch{console.warn("Graph contacts too large for localStorage")}
         }
         rebuildGraph(allContacts);
         if(vcfCount>0||liCount>0){
@@ -3089,7 +3085,7 @@ function NetworkDashboard({donors,graphContacts,setGraphContacts,graphData,setGr
         <button className="btn btn-ghost btn-sm" style={{color:"var(--red)"}} onClick={()=>{
           if(!confirm("Clear all imported contacts? This cannot be undone."))return;
           setGraphContacts([]);setGraphData(null);
-          sSet("ov2_graph_contacts",[]);sSet("ov2_graph_data_summary",null);
+          sSet("graph_contacts",[]);sSet("graph_data_summary",null);
           setImportStats(null);
         }}>🗑️ Clear All</button>
       </div>}
@@ -3293,12 +3289,12 @@ function NetworkGraphSVG({graphData,donors,graphContacts,sortedPaths}){
 // COMPONENT: GmailIntegration — Sync contacts from Gmail headers
 // ============================================================
 function GmailIntegration({graphContacts,setGraphContacts,donors,rebuildGraph}){
-  const[bridgeUrl]=useState(()=>sGet("ov2_wa_bridge","http://localhost:3001"));
+  const[bridgeUrl]=useState(()=>sGet("wa_bridge","http://localhost:3001"));
   const[gmailStatus,setGmailStatus]=useState("unknown"); // unknown|ready|offline|auth_needed
   const[syncing,setSyncing]=useState(false);
   const[syncResult,setSyncResult]=useState(null);
   const[gmailContacts,setGmailContacts]=useState([]);
-  const[apiKey]=useState(()=>sGet("ov2_key",""));
+  const[apiKey]=useState(()=>sGet("key",""));
 
   // -- Check bridge for Gmail endpoint --
   useEffect(()=>{
@@ -3363,7 +3359,7 @@ function GmailIntegration({graphContacts,setGraphContacts,donors,rebuildGraph}){
     });
     const merged=[...existing.values()];
     setGraphContacts(merged);
-    try{sSet("ov2_graph_contacts",merged)}catch{}
+    try{sSet("graph_contacts",merged)}catch{}
     rebuildGraph(merged);
     setSyncResult({parsed:parsed.length,new:newCount,total:merged.length});
     setGmailContacts(parsed);
@@ -3797,8 +3793,8 @@ ${actHistory||"No previous activities"}
 Days since last contact: ${entry?.daysSinceContact===999?"Never contacted":entry?.daysSinceContact+" days"}
 
 CAMPAIGN CONTEXT:
-- Ohr Vishua Yeshiva in Haifa — new Hesder yeshiva for tech olim
-- $12M 5-year campaign for 360-student facility
+- Organization: ${getActiveOrg().name} — ${getActiveOrg().tagline||"Jewish nonprofit"}
+${(()=>{const p=getOrgProfile();return p.mission?"- Mission: "+p.mission:"- Set up org profile in Admin for personalized coaching"})()}
 - Asking for: ${fmt$(entry?.ask||25000)}
 - Best template: ${TEMPLATES.find(t=>t.id===entry?.template)?.name||"Cold"}
 
@@ -4379,6 +4375,171 @@ function CSVImportMapper({onImport,onClose}){
 
 // ============================================================
 // ============================================================
+// ============================================================
+// COMPONENT: OrgRegistrationModal — register a new organization
+// ============================================================
+function OrgRegistrationModal({onComplete,onClose}){
+  const[step,setStep]=useState(0); // 0=form, 1=verify, 2=done
+  const[form,setForm]=useState({name:"",website:"",type:"synagogue",adminName:"",adminEmail:"",password:"",mission:"",ein:""});
+  const[verifyCode,setVerifyCode]=useState("");
+  const[err,setErr]=useState("");
+  const{addToast}=useToast();
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+
+  const domain=form.adminEmail.includes("@")?form.adminEmail.split("@")[1]:"";
+  const isGenericDomain=["gmail.com","yahoo.com","hotmail.com","outlook.com","aol.com","icloud.com"].includes(domain);
+
+  const submitForm=()=>{
+    if(!form.name||!form.adminName||!form.adminEmail||!form.password){setErr("All required fields must be filled");return}
+    if(form.password.length<6){setErr("Password must be at least 6 characters");return}
+    setErr("");setStep(1);
+  };
+
+  const verify=()=>{
+    // Client-side demo verification — production would use SMTP email with 6-digit code
+    if(verifyCode==="123456"||verifyCode===domain.slice(0,6)){
+      // Create org
+      const orgId=form.name.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+      const org={
+        id:orgId,name:form.name,tagline:"",
+        logo:form.name.split(/\s+/).map(w=>w[0]).join("").slice(0,2).toUpperCase(),
+        accentColor:"#f59e0b",currency:"USD",timezone:"America/New_York",
+        website:form.website,org_type:form.type,ein:form.ein,
+        mission:form.mission,created:new Date().toISOString(),
+        verified:true,verifiedAt:new Date().toISOString(),verifiedDomain:domain
+      };
+      // Add to org list
+      const orgList=getOrgList();
+      if(orgList.find(o=>o.id===orgId)){setErr("An organization with this ID already exists");return}
+      orgList.push(org);setOrgList(orgList);
+      // Switch to new org
+      setActiveOrg(org);
+      // Create admin user for the new org
+      const adminUser={id:Date.now(),name:form.adminName,email:form.adminEmail.toLowerCase(),role:"admin",
+        passwordHash:hashPassword(form.password),created:new Date().toISOString(),avatar:form.adminName.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2)};
+      // Store user under new org prefix
+      localStorage.setItem(orgId+"_users",JSON.stringify([adminUser]));
+      appendAudit({type:"login",action:"New organization registered",detail:form.name,user:form.adminName});
+      setStep(2);
+    }else{
+      setErr("Invalid verification code. Use 123456 for demo.");
+    }
+  };
+
+  const finish=()=>{
+    addToast({type:"success",title:"Organization registered!",message:`${form.name} is ready. Reloading...`});
+    setTimeout(()=>window.location.reload(),1000);
+  };
+
+  return(<div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()} style={{width:560}}>
+    <div className="modal-header"><h3>🏢 Register New Organization</h3><div style={{cursor:"pointer",color:"var(--text3)",fontSize:18}} onClick={onClose}>✕</div></div>
+    <div className="modal-body">
+      {err&&<div style={{background:"var(--red-soft)",color:"var(--red)",padding:"8px 12px",borderRadius:"var(--radius-sm)",marginBottom:12,fontSize:12}}>{err}</div>}
+
+      {step===0&&<>
+        <div className="form-group"><label className="form-label">Organization Name *</label>
+          <input className="form-input" value={form.name} onChange={e=>set("name",e.target.value)} placeholder="Temple Beth Israel"/></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <div className="form-group"><label className="form-label">Website</label>
+            <input className="form-input" value={form.website} onChange={e=>set("website",e.target.value)} placeholder="https://yourorg.org"/></div>
+          <div className="form-group"><label className="form-label">Organization Type</label>
+            <select className="form-select" value={form.type} onChange={e=>set("type",e.target.value)}>
+              {ORG_TYPES.map(t=><option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
+            </select></div>
+        </div>
+        <div className="form-group"><label className="form-label">Mission (optional)</label>
+          <textarea className="form-textarea" value={form.mission} onChange={e=>set("mission",e.target.value)} placeholder="What does your organization do?" style={{minHeight:50}}/></div>
+        <div className="form-group"><label className="form-label">EIN (optional)</label>
+          <input className="form-input" value={form.ein} onChange={e=>set("ein",e.target.value)} placeholder="XX-XXXXXXX"/></div>
+
+        <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:.5,marginTop:16,marginBottom:8,paddingTop:12,borderTop:"1px solid var(--border)"}}>Admin Account</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <div className="form-group"><label className="form-label">Admin Name *</label>
+            <input className="form-input" value={form.adminName} onChange={e=>set("adminName",e.target.value)} placeholder="Your full name"/></div>
+          <div className="form-group"><label className="form-label">Admin Email *</label>
+            <input className="form-input" type="email" value={form.adminEmail} onChange={e=>set("adminEmail",e.target.value)} placeholder="you@yourorg.org"/></div>
+        </div>
+        {isGenericDomain&&form.adminEmail&&<div style={{background:"var(--accent-soft)",color:"var(--accent)",padding:"6px 10px",borderRadius:"var(--radius-sm)",fontSize:11,marginBottom:8}}>⚠️ Using a personal email ({domain}). Organizational email (e.g., you@yourorg.org) is recommended for verification.</div>}
+        <div className="form-group"><label className="form-label">Password *</label>
+          <input className="form-input" type="password" value={form.password} onChange={e=>set("password",e.target.value)} placeholder="Min 6 characters"/></div>
+      </>}
+
+      {step===1&&<div style={{textAlign:"center",padding:"20px 0"}}>
+        <div style={{fontSize:36,marginBottom:12}}>📧</div>
+        <h3 style={{marginBottom:8}}>Verify Your Email</h3>
+        <p style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>
+          In production, we send a 6-digit verification code to <strong>{form.adminEmail}</strong>.<br/>
+          For this demo, enter code: <strong>123456</strong>
+        </p>
+        <input className="form-input" value={verifyCode} onChange={e=>setVerifyCode(e.target.value)} placeholder="Enter 6-digit code" style={{maxWidth:200,margin:"0 auto",textAlign:"center",fontSize:18,letterSpacing:8,fontWeight:700}} onKeyDown={e=>{if(e.key==="Enter")verify()}}/>
+        <div style={{marginTop:12,fontSize:10,color:"var(--text4)"}}>
+          Production path: SMTP email → 6-digit code → rate limiting → domain allowlist
+        </div>
+      </div>}
+
+      {step===2&&<div style={{textAlign:"center",padding:"20px 0"}}>
+        <div style={{fontSize:48,marginBottom:12}}>✅</div>
+        <h2 style={{fontSize:20,fontWeight:800,marginBottom:8}}>{form.name} Registered!</h2>
+        <p style={{fontSize:12,color:"var(--text3)"}}>Your organization is verified and ready to use. The CRM will reload with your new org.</p>
+      </div>}
+    </div>
+    <div className="modal-footer">
+      {step===0&&<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={submitForm}>Next: Verify Email →</button></>}
+      {step===1&&<><button className="btn btn-ghost" onClick={()=>setStep(0)}>← Back</button><button className="btn btn-primary" onClick={verify}>Verify & Create</button></>}
+      {step===2&&<button className="btn btn-primary" onClick={finish}>🚀 Launch CRM</button>}
+    </div>
+  </div></div>);
+}
+
+// ============================================================
+// COMPONENT: OrgSwitcher — dropdown from nav logo to switch orgs
+// ============================================================
+function OrgSwitcher({currentOrg,onClose}){
+  const[orgs]=useState(()=>getOrgList());
+  const[showRegister,setShowRegister]=useState(false);
+  const ref=useRef();
+
+  useEffect(()=>{
+    const handler=(e)=>{if(ref.current&&!ref.current.contains(e.target))onClose()};
+    document.addEventListener("mousedown",handler);
+    return()=>document.removeEventListener("mousedown",handler);
+  },[onClose]);
+
+  const switchOrg=(org)=>{
+    setActiveOrg(org);
+    // Must reload to re-initialize all org-scoped state from localStorage
+    window.location.reload();
+  };
+
+  return(<>
+    <div ref={ref} style={{position:"absolute",top:48,left:4,width:240,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-lg)",boxShadow:"var(--shadow-lg)",zIndex:200,overflow:"hidden"}}>
+      <div style={{padding:"10px 12px",borderBottom:"1px solid var(--border)",fontSize:10,fontWeight:700,color:"var(--text4)",textTransform:"uppercase",letterSpacing:.5}}>Organizations</div>
+      <div style={{maxHeight:240,overflowY:"auto"}}>
+        {orgs.map(org=>(
+          <div key={org.id} onClick={()=>switchOrg(org)} style={{
+            display:"flex",alignItems:"center",gap:8,padding:"10px 12px",cursor:"pointer",transition:"background .1s",
+            background:org.id===currentOrg.id?"var(--accent-soft)":"transparent",borderBottom:"1px solid var(--border)"
+          }} onMouseEnter={e=>{if(org.id!==currentOrg.id)e.currentTarget.style.background="var(--surface2)"}} onMouseLeave={e=>{if(org.id!==currentOrg.id)e.currentTarget.style.background="transparent"}}>
+            <div style={{width:28,height:28,borderRadius:"var(--radius-sm)",background:org.id===currentOrg.id?"var(--accent)":"var(--surface3)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:10,color:org.id===currentOrg.id?"var(--bg)":"var(--text3)",flexShrink:0}}>
+              {org.logo||org.name?.slice(0,2).toUpperCase()}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:12,fontWeight:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{org.name}</div>
+              {org.tagline&&<div style={{fontSize:10,color:"var(--text4)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{org.tagline}</div>}
+            </div>
+            {org.id===currentOrg.id&&<span style={{fontSize:10,color:"var(--accent)",fontWeight:700}}>✓</span>}
+          </div>
+        ))}
+      </div>
+      <div style={{padding:"8px 12px",borderTop:"1px solid var(--border)"}}>
+        <button className="btn btn-ghost btn-sm" style={{width:"100%",justifyContent:"center"}} onClick={()=>setShowRegister(true)}>+ Add Organization</button>
+      </div>
+    </div>
+    {showRegister&&<OrgRegistrationModal onComplete={()=>{}} onClose={()=>setShowRegister(false)}/>}
+  </>);
+}
+
+// ============================================================
 // COMPONENT: IntegrationHub — connect fundraising platforms
 // ============================================================
 const INTEGRATIONS=[
@@ -4530,7 +4691,7 @@ function OnboardingWizard({onComplete,onSkip}){
   const[step,setStep]=useState(0); // 0=welcome, 1=org, 2=ai_research, 3=data, 4=api, 5=done
   const[orgName,setOrgName]=useState("");
   const[orgTagline,setOrgTagline]=useState("");
-  const[orgLogo,setOrgLogo]=useState("OV");
+  const[orgLogo,setOrgLogo]=useState("");
   const[orgWebsite,setOrgWebsite]=useState("");
   const[orgType,setOrgType]=useState("yeshiva");
   const[orgMission,setOrgMission]=useState("");
@@ -4610,7 +4771,7 @@ function OnboardingWizard({onComplete,onSkip}){
           <h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>Set Up Your Organization</h3>
           <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12}}>
             <div className="form-group"><label className="form-label">Organization Name *</label>
-              <input className="form-input" value={orgName} onChange={e=>setOrgName(e.target.value)} placeholder="e.g., Ohr Vishua Yeshiva"/></div>
+              <input className="form-input" value={orgName} onChange={e=>setOrgName(e.target.value)} placeholder="e.g., Temple Beth Israel"/></div>
             <div className="form-group"><label className="form-label">Logo Initials</label>
               <input className="form-input" value={orgLogo} onChange={e=>setOrgLogo(e.target.value.slice(0,2))} maxLength={2} style={{textAlign:"center",fontSize:18,fontWeight:800}}/></div>
           </div>
@@ -4618,7 +4779,7 @@ function OnboardingWizard({onComplete,onSkip}){
             <input className="form-input" value={orgTagline} onChange={e=>setOrgTagline(e.target.value)} placeholder="e.g., Haifa Hesder Yeshiva"/></div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             <div className="form-group"><label className="form-label">Website URL</label>
-              <input className="form-input" value={orgWebsite} onChange={e=>setOrgWebsite(e.target.value)} placeholder="https://ohrvishua.org"/></div>
+              <input className="form-input" value={orgWebsite} onChange={e=>setOrgWebsite(e.target.value)} placeholder="https://yourorg.org"/></div>
             <div className="form-group"><label className="form-label">Organization Type</label>
               <select className="form-select" value={orgType} onChange={e=>setOrgType(e.target.value)}>
                 {ORG_TYPES.map(t=><option key={t.id} value={t.id}>{t.icon} {t.label}</option>)}
@@ -4799,7 +4960,7 @@ function DealsView({deals,donors,onAdd}){
 function WhatsAppChat({donor,onLogActivity}){
   const[msgs,setMsgs]=useState([]);const[loading,setLoading]=useState(false);const[err,setErr]=useState("");
   const[newMsg,setNewMsg]=useState("");const[sending,setSending]=useState(false);
-  const[bridgeUrl]=useState(()=>sGet("ov2_wa_bridge","http://localhost:3001"));
+  const[bridgeUrl]=useState(()=>sGet("wa_bridge","http://localhost:3001"));
   const[waState,setWaState]=useState("unknown"); // unknown|qr|ready|disconnected
   const scrollRef=useRef();
 
@@ -4886,7 +5047,7 @@ function WhatsAppChat({donor,onLogActivity}){
 // COMPONENT: WhatsApp Hub — QR Auth + Sync + Conversations + Import
 // ============================================================
 function WhatsAppHub({donors,onLogActivities}){
-  const[bridgeUrl]=useState(()=>sGet("ov2_wa_bridge","http://localhost:3001"));
+  const[bridgeUrl]=useState(()=>sGet("wa_bridge","http://localhost:3001"));
   const[waState,setWaState]=useState("unknown");
   const[health,setHealth]=useState(null);
   const[qrImg,setQrImg]=useState(null);
@@ -5124,7 +5285,7 @@ function WhatsAppHub({donors,onLogActivities}){
 function Settings({apiKey,setKey,pplxKey,setPplxKey,aiProvider,setAiProvider,donors,acts,notes,deals,waBridge,setWaBridge}){
   const[waStatus,setWaStatus]=useState(null);
   const[testResult,setTestResult]=useState(null);
-  const exp=()=>{const d={donors,activities:acts,notes,deals,exported:new Date().toISOString()};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="ohr_vishua_crm_export.json";a.click();URL.revokeObjectURL(u)};
+  const exp=()=>{const d={donors,activities:acts,notes,deals,exported:new Date().toISOString()};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="chairaise_crm_export.json";a.click();URL.revokeObjectURL(u)};
   const checkWa=async()=>{
     try{const r=await fetch(`${waBridge}/api/health`);const d=await r.json();setWaStatus(d)}catch{setWaStatus({error:true})}
   };
@@ -5180,7 +5341,7 @@ function Settings({apiKey,setKey,pplxKey,setPplxKey,aiProvider,setAiProvider,don
       </div>
     </div>
     <div className="settings-section"><h4>Data</h4><button className="btn btn-ghost" onClick={exp} style={{marginTop:8}}>📥 Export All (JSON)</button><div style={{marginTop:12,fontSize:11,color:"var(--text3)"}}>Donors: {donors.length} | Activities: {acts.length} | Notes: {notes.length} | Deals: {deals.length}</div></div>
-    <div className="settings-section"><h4>About</h4><p style={{fontSize:12,color:"var(--text2)",lineHeight:1.6}}>Ohr Vishua AI CRM — Attio-inspired AI-native fundraising platform.<br/>Built for the $12M Haifa Yeshiva campaign.<br/>AI Attributes • Pipeline Kanban • Timeline • Smart Email • Deal Tracking • WhatsApp Integration</p></div>
+    <div className="settings-section"><h4>About</h4><p style={{fontSize:12,color:"var(--text2)",lineHeight:1.6}}>ChaiRaise — AI-Native Jewish Fundraising CRM.<br/>Multiply your impact by 18.<br/>AI Scoring • Cause Match • Pipeline Kanban • Smart Email • Social Graph • WhatsApp • Integrations</p></div>
   </div></div>);
 }
 
@@ -5226,6 +5387,7 @@ function AppInner(){
   const[showCSVImport,setShowCSVImport]=useState(false);
   const[showBatchEmail,setShowBatchEmail]=useState(false);
   const[showAdvSearch,setShowAdvSearch]=useState(false);
+  const[showOrgSwitcher,setShowOrgSwitcher]=useState(false);
   const[orgProfile,setOrgProfile]=useState(()=>getOrgProfile());
 
   // ---- Donor merge handler (for duplicate detection) ----
@@ -5405,7 +5567,7 @@ function AppInner(){
   },[]);
 
   // ---- Onboarding wizard state ----
-  const[showWizard,setShowWizard]=useState(()=>!localStorage.getItem(orgPrefix()+"donors")&&!localStorage.getItem("ov2_donors"));
+  const[showWizard,setShowWizard]=useState(()=>!localStorage.getItem(orgPrefix()+"donors"));
   const handleWizardComplete=({org,apiKey:ak,pplxKey:pk,aiProvider:ap,dataChoice})=>{
     // Save org with full profile
     const orgList=getOrgList();
@@ -5433,7 +5595,10 @@ function AppInner(){
   return(<div className="app-shell">
     {/* NAV RAIL */}
     <div className="nav-rail">
-      <div className="nav-logo" title="Ohr Vishua CRM" onClick={()=>setPage("dashboard")}>OV</div>
+      <div style={{position:"relative"}}>
+        <div className="nav-logo" title={(getActiveOrg().name||"ChaiRaise")+" — Click to switch orgs"} onClick={()=>setShowOrgSwitcher(!showOrgSwitcher)}>{getActiveOrg().logo||"CR"}</div>
+        {showOrgSwitcher&&<OrgSwitcher currentOrg={getActiveOrg()} onClose={()=>setShowOrgSwitcher(false)}/>}
+      </div>
       {NAV.map(n=><div key={n.id} className={"nav-item "+(page===n.id?"active":"")} onClick={()=>{setPage(n.id);if(n.id==="donors")setSub("list")}} title={n.label} style={{position:"relative"}}>
         {n.icon}
         {n.id==="reminders"&&remindersDue>0&&<div style={{position:"absolute",top:2,right:2,width:14,height:14,borderRadius:7,background:"var(--red)",fontSize:9,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>{remindersDue}</div>}
