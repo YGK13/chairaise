@@ -1,0 +1,18 @@
+import './globals.css';
+
+export const metadata = {
+  title: 'ChaiRaise — AI-Native Jewish Fundraising CRM',
+  description: 'Multiply your impact by 18. AI-powered donor intelligence, cause matching, and multi-channel outreach for Jewish organizations.',
+  icons: { icon: '/favicon.ico' },
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
