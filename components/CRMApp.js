@@ -31,7 +31,22 @@ const STAGES=[
   {id:"commitment",label:"Commitment",color:"#22c55e",order:9}
 ];
 const TIERS={"Tier 1":{label:"T1",cls:"t1"},"Tier 2":{label:"T2",cls:"t2"},"Tier 3":{label:"T3",cls:"t3"}};
-const NAV=[{id:"dashboard",icon:"\u{1F4CA}",label:"Dashboard"},{id:"donors",icon:"\u{1F465}",label:"Donors"},{id:"leaderboard",icon:"\u{1F3C6}",label:"Leaderboard"},{id:"campaigns",icon:"\u{1F3AF}",label:"Campaigns"},{id:"analytics",icon:"\u{1F4C8}",label:"Analytics"},{id:"network",icon:"\u{1F578}\uFE0F",label:"Network"},{id:"outreach",icon:"\u{1F9E0}",label:"Outreach Coach"},{id:"deals",icon:"\u{1F48E}",label:"Deals"},{id:"tags",icon:"\u{1F3F7}\uFE0F",label:"Tags"},{id:"reminders",icon:"\u{1F514}",label:"Reminders"},{id:"automation",icon:"\u2699\uFE0F",label:"Automation"},{id:"exports",icon:"\u{1F4E5}",label:"Exports"},{id:"team",icon:"\u{1F465}",label:"Team"},{id:"audit",icon:"\u{1F4DC}",label:"Audit Log"},{id:"duplicates",icon:"\u{1F50D}",label:"Duplicates"},{id:"integrations",icon:"\u{1F50C}",label:"Integrations"},{id:"whatsapp",icon:"\u{1F4AC}",label:"WhatsApp"},{id:"email",icon:"\u2709\uFE0F",label:"Compose"},{id:"admin",icon:"\u{1F3E2}",label:"Admin"},{id:"settings",icon:"\u{1F527}",label:"Settings"}];
+// NAV — streamlined to 10 core items (was 20)
+// Removed: Leaderboard (merged into Donors), Tags (merged into Donors filters),
+// Automation/Exports/Audit/Duplicates/Team (moved into Admin), WhatsApp/Compose (accessed via Donor detail)
+const NAV=[
+  {id:"dashboard",icon:"\u{1F4CA}",label:"Dashboard"},
+  {id:"donors",icon:"\u{1F465}",label:"Donors"},
+  {id:"campaigns",icon:"\u{1F3AF}",label:"Campaigns"},
+  {id:"network",icon:"\u{1F578}\uFE0F",label:"Network"},
+  {id:"outreach",icon:"\u{1F9E0}",label:"Outreach"},
+  {id:"deals",icon:"\u{1F48E}",label:"Deals"},
+  {id:"reminders",icon:"\u{1F514}",label:"Reminders"},
+  {id:"analytics",icon:"\u{1F4C8}",label:"Analytics"},
+  {id:"integrations",icon:"\u{1F50C}",label:"Integrations"},
+  {id:"admin",icon:"\u{1F3E2}",label:"Admin"},
+  {id:"settings",icon:"\u2699\uFE0F",label:"Settings"}
+];
 
 // ============================================================
 // DONOR FIELD SCHEMA — drives Add/Edit forms & inline editing
@@ -137,7 +152,7 @@ const fmtN=(n)=>(!n||isNaN(n))?"—":Number(n).toLocaleString("en-US");
 const initials=(n)=>n?n.split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2):"?";
 
 // ============================================================
-// AUTH SYSTEM — user management, roles, session persistence
+// AUTH SYSTEM — roles & permissions (session from NextAuth via props)
 // ============================================================
 const ROLES=[
   {id:"admin",label:"Admin",icon:"👑",desc:"Full access, user management",perms:["all"]},
@@ -145,16 +160,9 @@ const ROLES=[
   {id:"fundraiser",label:"Fundraiser",icon:"✉️",desc:"Donors, outreach, email",perms:["donors","outreach","email","deals","reminders","whatsapp"]},
   {id:"viewer",label:"Viewer",icon:"👁️",desc:"Read-only dashboard access",perms:["dashboard","analytics"]}
 ];
+// Session helpers — read from localStorage (synced by NextAuth in page.js)
 const getSession=()=>{try{return JSON.parse(localStorage.getItem("crm_session"))||null}catch{return null}};
-const setSession=(s)=>{try{localStorage.setItem("crm_session",JSON.stringify(s))}catch{}};
 const clearSession=()=>{try{localStorage.removeItem("crm_session")}catch{}};
-const getUsers=()=>{try{return JSON.parse(localStorage.getItem(orgPrefix()+"users"))||[]}catch{return[]}};
-const setUsers=(u)=>{try{localStorage.setItem(orgPrefix()+"users",JSON.stringify(u))}catch{}};
-const hashPassword=(pw)=>{
-  // Simple hash for client-side demo — NOT cryptographically secure (production would use server-side bcrypt)
-  let hash=0;for(let i=0;i<pw.length;i++){hash=((hash<<5)-hash)+pw.charCodeAt(i);hash|=0;}
-  return"h_"+Math.abs(hash).toString(36);
-};
 const hasPermission=(session,perm)=>{
   if(!session)return false;
   const role=ROLES.find(r=>r.id===session.role);
@@ -163,104 +171,9 @@ const hasPermission=(session,perm)=>{
 };
 
 // ============================================================
-// AUTH COMPONENT — Login / Register screen
+// AUTH — handled by NextAuth at /auth/signin
+// Session is synced to localStorage by page.js wrapper
 // ============================================================
-function AuthScreen({onLogin}){
-  const[mode,setMode]=useState("login"); // login | register
-  const[email,setEmail]=useState("");
-  const[password,setPassword]=useState("");
-  const[name,setName]=useState("");
-  const[role,setRole]=useState("fundraiser");
-  const[err,setErr]=useState("");
-  const[loading,setLoading]=useState(false);
-
-  const handleLogin=()=>{
-    setErr("");
-    if(!email||!password){setErr("Email and password required");return}
-    const users=getUsers();
-    const user=users.find(u=>u.email.toLowerCase()===email.toLowerCase());
-    if(!user){setErr("No account found with this email");return}
-    if(user.passwordHash!==hashPassword(password)){setErr("Incorrect password");return}
-    const session={...user,loginAt:new Date().toISOString()};
-    setSession(session);
-    onLogin(session);
-  };
-
-  const handleRegister=()=>{
-    setErr("");
-    if(!name||!email||!password){setErr("All fields required");return}
-    if(password.length<6){setErr("Password must be at least 6 characters");return}
-    const users=getUsers();
-    if(users.find(u=>u.email.toLowerCase()===email.toLowerCase())){setErr("Email already registered");return}
-    const newUser={id:Date.now(),name,email:email.toLowerCase(),role,passwordHash:hashPassword(password),created:new Date().toISOString(),avatar:initials(name)};
-    users.push(newUser);
-    setUsers(users);
-    const session={...newUser,loginAt:new Date().toISOString()};
-    setSession(session);
-    onLogin(session);
-  };
-
-  // Auto-login if session exists
-  useEffect(()=>{
-    const s=getSession();
-    if(s)onLogin(s);
-  },[]);
-
-  return(<div className="auth-overlay">
-    <div className="auth-card">
-      <div className="auth-logo">CR</div>
-      <h2>ChaiRaise</h2>
-      <div className="auth-sub">AI-Native Fundraising Platform</div>
-
-      <div className="auth-tabs">
-        <div className={"auth-tab"+(mode==="login"?" active":"")} onClick={()=>{setMode("login");setErr("")}}>Sign In</div>
-        <div className={"auth-tab"+(mode==="register"?" active":"")} onClick={()=>{setMode("register");setErr("")}}>Register</div>
-      </div>
-
-      {err&&<div style={{background:"var(--red-soft)",color:"var(--red)",padding:"8px 12px",borderRadius:"var(--radius-sm)",marginBottom:12,fontSize:12}}>{err}</div>}
-
-      {mode==="register"&&<div className="form-group"><label className="form-label">Full Name</label>
-        <input className="form-input" value={name} onChange={e=>setName(e.target.value)} placeholder="Yuri Kruman"/></div>}
-      <div className="form-group"><label className="form-label">Email</label>
-        <input className="form-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="yuri@example.com"/></div>
-      <div className="form-group"><label className="form-label">Password</label>
-        <input className="form-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Min 6 characters" onKeyDown={e=>{if(e.key==="Enter")(mode==="login"?handleLogin:handleRegister)()}}/></div>
-
-      {mode==="register"&&<>
-        <div className="form-group"><label className="form-label">Role</label></div>
-        <div className="auth-role-grid">
-          {ROLES.filter(r=>r.id!=="admin").map(r=>(
-            <div key={r.id} className={"auth-role"+(role===r.id?" selected":"")} onClick={()=>setRole(r.id)}>
-              <div className="role-icon">{r.icon}</div>
-              <div className="role-name">{r.label}</div>
-              <div className="role-desc">{r.desc}</div>
-            </div>
-          ))}
-        </div>
-      </>}
-
-      <button className="btn btn-primary" onClick={mode==="login"?handleLogin:handleRegister} style={{width:"100%",padding:"10px",fontSize:14,marginTop:8}}>
-        {mode==="login"?"Sign In":"Create Account"}
-      </button>
-
-      {mode==="login"&&<div style={{textAlign:"center",marginTop:16,fontSize:11,color:"var(--text3)"}}>
-        First time? <span style={{color:"var(--accent)",cursor:"pointer"}} onClick={()=>{setMode("register");setErr("")}}>Create an account</span>
-        <div style={{marginTop:8}}>
-          <span style={{color:"var(--accent)",cursor:"pointer"}} onClick={()=>{
-            // Quick demo login — create admin if none exists
-            const users=getUsers();
-            if(!users.length){
-              const admin={id:1,name:"Demo User",email:"demo@chairaise.com",role:"admin",passwordHash:hashPassword("demo123"),created:new Date().toISOString(),avatar:"DU"};
-              users.push(admin);setUsers(users);
-            }
-            const session={...users[0],loginAt:new Date().toISOString()};
-            setSession(session);onLogin(session);
-          }}>Quick Demo Login →</span>
-        </div>
-      </div>}
-    </div>
-  </div>);
-}
 
 // ============================================================
 // TOAST / NOTIFICATION SYSTEM — global notifications
@@ -1236,29 +1149,17 @@ const parseCSV=(text)=>{
 // ============================================================
 // UNIFIED AI CALLER — supports Anthropic (Claude) + Perplexity
 // ============================================================
-const callAI=async(prompt,provider,anthropicKey,pplxKey)=>{
-  if(provider==="perplexity"){
-    if(!pplxKey)throw new Error("Perplexity API key not set. Go to Settings.");
-    const res=await fetch("https://api.perplexity.ai/chat/completions",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","Authorization":"Bearer "+pplxKey},
-      body:JSON.stringify({model:"sonar-pro",max_tokens:1024,messages:[{role:"user",content:prompt}]})
-    });
-    if(!res.ok){const t=await res.text();throw new Error(`Perplexity ${res.status}: ${t}`);}
-    const data=await res.json();
-    return data.choices?.[0]?.message?.content||"";
-  }else{
-    // Default: Anthropic (Claude)
-    if(!anthropicKey)throw new Error("Anthropic API key not set. Go to Settings.");
-    const res=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","x-api-key":anthropicKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1024,messages:[{role:"user",content:prompt}]})
-    });
-    if(!res.ok){const t=await res.text();throw new Error(`Anthropic ${res.status}: ${t}`);}
-    const data=await res.json();
-    return data.content?.[0]?.text||"";
-  }
+// callAI — routes through /api/ai server route (keys stay server-side)
+// Legacy params (anthropicKey, pplxKey) are ignored — server uses env vars
+const callAI=async(prompt,provider="anthropic",_anthropicKey,_pplxKey)=>{
+  const res=await fetch("/api/ai",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({prompt,provider,max_tokens:1024})
+  });
+  const data=await res.json();
+  if(data.error)throw new Error(data.error+(data.hint?" — "+data.hint:""));
+  return data.result||"";
 };
 
 // ============================================================
@@ -5282,7 +5183,7 @@ function WhatsAppHub({donors,onLogActivities}){
 // ============================================================
 // COMPONENT: Settings (updated with WhatsApp config)
 // ============================================================
-function Settings({apiKey,setKey,pplxKey,setPplxKey,aiProvider,setAiProvider,donors,acts,notes,deals,waBridge,setWaBridge}){
+function Settings({donors,acts,notes,deals,waBridge,setWaBridge}){
   const[waStatus,setWaStatus]=useState(null);
   const[testResult,setTestResult]=useState(null);
   const exp=()=>{const d={donors,activities:acts,notes,deals,exported:new Date().toISOString()};const b=new Blob([JSON.stringify(d,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="chairaise_crm_export.json";a.click();URL.revokeObjectURL(u)};
@@ -5292,35 +5193,19 @@ function Settings({apiKey,setKey,pplxKey,setPplxKey,aiProvider,setAiProvider,don
   const testAI=async()=>{
     setTestResult({loading:true});
     try{
-      const res=await callAI("Say 'CRM AI Ready!' in 5 words or less.",aiProvider,apiKey,pplxKey);
-      setTestResult({ok:true,msg:res.slice(0,80)});
+      const res=await fetch("/api/ai",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:"Say 'CRM AI Ready!' in 5 words or less.",provider:"anthropic"})});
+      const data=await res.json();
+      if(data.error)throw new Error(data.error);
+      setTestResult({ok:true,msg:data.result?.slice(0,80)||"Connected"});
     }catch(e){setTestResult({ok:false,msg:e.message})}
   };
   return(<div className="content-scroll"><div className="settings-page">
     <h2 style={{fontSize:18,fontWeight:700,marginBottom:16}}>Settings</h2>
 
-    {/* AI Provider Selection */}
+    {/* AI Status — keys are now server-side only */}
     <div className="settings-section">
-      <h4>🧠 AI Provider</h4>
-      <p style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>Choose which AI powers email generation, donor briefs, and outreach coaching. Your key stays in localStorage only.</p>
-      <div style={{display:"flex",gap:8,marginBottom:12}}>
-        {[{id:"anthropic",label:"Anthropic (Claude)",icon:"🟠"},{id:"perplexity",label:"Perplexity",icon:"🔵"}].map(p=>(
-          <div key={p.id} onClick={()=>setAiProvider(p.id)} style={{flex:1,padding:12,borderRadius:"var(--radius)",border:"2px solid "+(aiProvider===p.id?"var(--accent)":"var(--border)"),background:aiProvider===p.id?"var(--accent-soft)":"var(--surface)",cursor:"pointer",textAlign:"center",transition:"all .15s"}}>
-            <div style={{fontSize:20,marginBottom:4}}>{p.icon}</div>
-            <div style={{fontSize:12,fontWeight:700}}>{p.label}</div>
-          </div>
-        ))}
-      </div>
-      {aiProvider==="anthropic"&&<div className="form-group">
-        <label className="form-label">Anthropic API Key</label>
-        <input className="form-input" type="password" value={apiKey} onChange={e=>setKey(e.target.value)} placeholder="sk-ant-api03-..."/>
-        <div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>Get yours at console.anthropic.com → API Keys</div>
-      </div>}
-      {aiProvider==="perplexity"&&<div className="form-group">
-        <label className="form-label">Perplexity API Key</label>
-        <input className="form-input" type="password" value={pplxKey} onChange={e=>setPplxKey(e.target.value)} placeholder="pplx-..."/>
-        <div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>Get yours at perplexity.ai → Settings → API</div>
-      </div>}
+      <h4>🧠 AI Configuration</h4>
+      <p style={{fontSize:12,color:"var(--text3)",marginBottom:10}}>AI API keys are managed securely on the server. Contact your admin to update them.</p>
       <div style={{display:"flex",gap:8,alignItems:"center"}}>
         <button className="btn btn-primary btn-sm" onClick={testAI} disabled={testResult?.loading}>
           {testResult?.loading?"⏳ Testing...":"⚡ Test AI Connection"}
@@ -5350,14 +5235,23 @@ function Settings({apiKey,setKey,pplxKey,setPplxKey,aiProvider,setAiProvider,don
 // Activity Logger, Bulk Actions, Working Global Search
 // ============================================================
 function AppInner(){
-  // ---- Auth state ----
+  // ---- Auth state (from NextAuth session synced to localStorage by page.js) ----
   const[session,setSessionState]=useState(()=>getSession());
   const[authed,setAuthed]=useState(()=>!!getSession());
   const toastCtx=useToast();
   const addToast=toastCtx.addToast;
 
-  const handleLogin=(s)=>{setSessionState(s);setAuthed(true)};
-  const handleLogout=()=>{clearSession();setSessionState(null);setAuthed(false)};
+  // Check for session on mount — NextAuth syncs it to localStorage in page.js
+  useEffect(()=>{
+    const s=getSession();
+    if(s){setSessionState(s);setAuthed(true)}
+  },[]);
+
+  const handleLogout=()=>{
+    clearSession();setSessionState(null);setAuthed(false);
+    // Redirect to NextAuth sign-out, then to sign-in page
+    window.location.href="/api/auth/signout?callbackUrl=/auth/signin";
+  };
 
   // ---- Core state (persisted to localStorage, with legacy migration) ----
   // NOTE: All hooks must be called unconditionally (React rules of hooks)
@@ -5587,7 +5481,16 @@ function AppInner(){
   };
 
   // ---- Auth gate (AFTER all hooks to comply with React rules) ----
-  if(!authed)return <AuthScreen onLogin={handleLogin}/>;
+  // If not authenticated, redirect to NextAuth sign-in
+  if(!authed){
+    if(typeof window!=="undefined")window.location.href="/auth/signin";
+    return(<div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",color:"var(--text)",fontFamily:"Inter,system-ui,sans-serif"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{width:56,height:56,background:"var(--accent)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:20,color:"var(--bg)",margin:"0 auto 16px"}}>CR</div>
+        <div style={{fontSize:14,color:"var(--text3)"}}>Redirecting to sign in...</div>
+      </div>
+    </div>);
+  }
 
   if(!donors&&!showWizard)return <DataLoader onLoad={loadData}/>;
   if(!donors&&showWizard)return <OnboardingWizard onComplete={handleWizardComplete} onSkip={()=>{setShowWizard(false)}}/>;
