@@ -5,6 +5,7 @@
 // ============================================================
 
 import {useState,useEffect,useCallback,useRef,useMemo,createContext,useContext} from "react";
+import {donorsAPI,donationsAPI,emailAPI,checkDBAvailable} from "@/lib/useData";
 
 // ============================================================
 // CONSTANTS & CONFIGURATION
@@ -1835,7 +1836,7 @@ function DataLoader({onLoad}){
 // ============================================================
 // COMPONENT: Dashboard
 // ============================================================
-function Dashboard({donors,acts,deals,reminders,outreachLog,session}){
+function Dashboard({donors,acts,deals,reminders,outreachLog,session,useDB,dbLoading}){
   const ps=useMemo(()=>STAGES.map(s=>({...s,count:donors.filter(d=>(d.pipeline_stage||"not_started")===s.id).length})),[donors]);
   const mx=Math.max(...ps.map(s=>s.count),1);
   const t1=donors.filter(d=>d.tier==="Tier 1").length;
@@ -5273,17 +5274,40 @@ function AppInner(){
     window.location.href="/api/auth/signout?callbackUrl=/auth/signin";
   };
 
-  // ---- Core state (persisted to localStorage, with legacy migration) ----
-  // NOTE: All hooks must be called unconditionally (React rules of hooks)
+  // ---- Core state ----
+  // DB-first with localStorage fallback: on mount, tries /api/donors.
+  // If DB is available, uses API for all CRUD. If not, falls back to localStorage.
   const[donors,setDonors]=useState(()=>sGetMigrate("donors",null));
   const[acts,setActs]=useState(()=>sGetMigrate("acts",[]));
   const[notes,setNotes]=useState(()=>sGetMigrate("notes",[]));
   const[deals,setDeals]=useState(()=>sGetMigrate("deals",[]));
   const[reminders,setReminders]=useState(()=>sGetMigrate("reminders",[]));
-  const[apiKey,setAKS]=useState(()=>sGetMigrate("key",""));
   const[waBridge,setWaBS]=useState(()=>sGetMigrate("wa_bridge","http://localhost:3001"));
-  const[pplxKey,setPplxKS]=useState(()=>sGetMigrate("pplx_key",""));
-  const[aiProvider,setAiProviderS]=useState(()=>sGetMigrate("ai_provider","anthropic"));
+  const[useDB,setUseDB]=useState(false); // true when Neon DB is available
+  const[dbLoading,setDbLoading]=useState(true);
+
+  // On mount: check if DB is available and load donors from it
+  useEffect(()=>{
+    const org=getActiveOrg();
+    (async()=>{
+      try{
+        const available=await checkDBAvailable();
+        setUseDB(available);
+        if(available){
+          const dbDonors=await donorsAPI.list(org.id);
+          if(dbDonors&&dbDonors.length>0){
+            setDonors(dbDonors);
+          }else if(!dbDonors){
+            // DB not configured — use localStorage
+            setUseDB(false);
+          }
+          // If DB has no donors but localStorage does, offer migration
+          // (handled in UI below)
+        }
+      }catch(e){console.warn("DB check failed, using localStorage:",e.message);setUseDB(false)}
+      finally{setDbLoading(false)}
+    })();
+  },[]);
 
   // ---- Social Graph state ----
   const[graphContacts,setGraphContacts]=useState(()=>sGetMigrate("graph_contacts",[]));
@@ -5427,28 +5451,74 @@ function AppInner(){
   const chgStage=useCallback((id,stg)=>{
     setDonors(p=>p.map(d=>(d.id||d.name)===id?{...d,pipeline_stage:stg}:d));
     setActs(p=>[...p,{did:id,type:"stage_change",summary:"Stage → "+STAGES.find(s=>s.id===stg)?.label,date:new Date().toISOString(),user:session?.name}]);
+    // Persist to DB if available and ID is numeric (DB-sourced)
+    if(useDB&&typeof id==="number"){
+      donorsAPI.update(id,{pipeline_stage:stg}).catch(e=>console.warn("DB stage update failed:",e.message));
+    }
     appendAudit({type:"stage_change",action:"Stage changed",detail:`${id} → ${STAGES.find(s=>s.id===stg)?.label}`,user:session?.name});
-  },[]);
+  },[useDB,session]);
 
   const addNote=useCallback(n=>setNotes(p=>[...p,n]),[]);
   const addDeal=useCallback(d=>setDeals(p=>[...p,d]),[]);
 
-  const sendEmail=useCallback(em=>{
+  const sendEmail=useCallback(async(em)=>{
+    const org=getActiveOrg();
+    // Try to send via Resend API if recipient email is available
+    if(em.recipientEmail&&em.body){
+      try{
+        await emailAPI.send({
+          to:em.recipientEmail,
+          subject:em.subj,
+          html:em.body.replace(/\n/g,"<br/>"),
+          from_name:org.name||"ChaiRaise",
+          org_id:org.id,
+          donor_id:em.did,
+          template_id:em.tmpl,
+        });
+        setActs(p=>[...p,{did:em.did,type:"email",summary:`Sent: "${em.subj}" (${em.tmpl})`,date:em.date}]);
+        setDonors(p=>p.map(d=>{if((d.id||d.name)===em.did){const i=STAGES.findIndex(s=>s.id===(d.pipeline_stage||"not_started"));if(i<4)return{...d,pipeline_stage:"email_sent"}}return d}));
+        addToast({type:"success",title:"Email sent!",message:`To ${em.recipientEmail}`});
+        return;
+      }catch(e){
+        // Fall back to draft mode if email sending fails
+        console.warn("Email send failed, saving as draft:",e.message);
+        addToast({type:"warning",title:"Email saved as draft",message:e.message});
+      }
+    }
+    // Fallback: save as draft (original behavior)
     setActs(p=>[...p,{did:em.did,type:"email",summary:`Drafted: "${em.subj}" (${em.tmpl})`,date:em.date}]);
     setDonors(p=>p.map(d=>{if((d.id||d.name)===em.did){const i=STAGES.findIndex(s=>s.id===(d.pipeline_stage||"not_started"));if(i<3)return{...d,pipeline_stage:"email_drafted"}}return d}));
-  },[]);
+  },[addToast]);
 
-  // -- Save donor (add new or update existing) --
-  const saveDonor=useCallback((donor,isEdit)=>{
+  // -- Save donor (add new or update existing) — DB-first with localStorage fallback --
+  const saveDonor=useCallback(async(donor,isEdit)=>{
+    const org=getActiveOrg();
     if(isEdit){
+      // Update in state immediately (optimistic)
       setDonors(p=>p.map(d=>(d.id||d.name)===(donor.id||donor.name)?{...d,...donor}:d));
       setSelD(prev=>prev&&(prev.id||prev.name)===(donor.id||donor.name)?{...prev,...donor}:prev);
+      // Persist to DB if available
+      if(useDB&&donor.id&&typeof donor.id==="number"){
+        try{await donorsAPI.update(donor.id,donor)}catch(e){console.warn("DB update failed:",e.message)}
+      }
       appendAudit({type:"donor_edit",action:"Donor edited",detail:donor.name,user:session?.name});
     }else{
-      setDonors(p=>[...p,{...donor,pipeline_stage:donor.pipeline_stage||"not_started"}]);
+      const newDonor={...donor,pipeline_stage:donor.pipeline_stage||"not_started"};
+      if(useDB){
+        try{
+          const result=await donorsAPI.create(org.id,newDonor);
+          // Use DB-assigned ID
+          setDonors(p=>[...p,{...newDonor,...result.donor}]);
+        }catch(e){
+          console.warn("DB create failed, saving locally:",e.message);
+          setDonors(p=>[...p,{...newDonor,id:newDonor.id||Date.now()}]);
+        }
+      }else{
+        setDonors(p=>[...p,{...newDonor,id:newDonor.id||Date.now()}]);
+      }
       appendAudit({type:"donor_add",action:"Donor added",detail:donor.name,user:session?.name});
     }
-  },[session]);
+  },[session,useDB]);
 
   // -- Log activity + optional reminder --
   const logActivity=useCallback((act,rem)=>{
