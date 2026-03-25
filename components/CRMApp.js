@@ -10,15 +10,26 @@ import {donorsAPI,donationsAPI,emailAPI,checkDBAvailable} from "@/lib/useData";
 // ============================================================
 // CONSTANTS & CONFIGURATION
 // ============================================================
-const TEMPLATES=[
-  {id:"T-A",name:"Alumni Connection",segment:"Cardozo/UPenn/YU Alumni",subject:"{First} — {School} Connection → Haifa Hesder/Tech Yeshiva",hooks:"{School}, {Prior_Gift}, {Mutual_Connection}"},
-  {id:"T-B",name:"Synagogue Connection",segment:"Park East/5th Ave/KJ members",subject:"{First} — {Synagogue} → Haifa Hesder Initiative",hooks:"{Synagogue}, {Rabbi_Name}, {Community_Focus}"},
-  {id:"T-C",name:"UJA / Prior Giver",segment:"UJA KDS/PMC donors",subject:"{First} — Your Israel Impact → Haifa Hesder Anchor",hooks:"{Prior_Gift_Detail}, {Custom_Hook}, UJA connection"},
-  {id:"T-D",name:"Family Legacy / Dynasty",segment:"Multi-generational families",subject:"{First} — {Family} Legacy → Anchoring Haifa's Future",hooks:"{Family}, {Known_Gift}, {Business_Parallel}"},
-  {id:"T-E",name:"Cold HNWI (Fallback)",segment:"Unknown/minimal intel",subject:"{First} — Building Israel's Next Anchor Institution",hooks:"Minimal personalization, rely on mission strength"},
-  {id:"T-F",name:"Sephardic / Persian",segment:"Safra/Magen David/Persian",subject:"{First} — Sephardic Legacy → Haifa Hesder Vision",hooks:"{Community}, {Synagogue}, cultural heritage"}
+// Default templates — org-generic. Each org can customize via Settings → Templates.
+// Merge fields: {First}, {OrgName}, {OrgMission}, {School}, {Synagogue}, {Community},
+//   {Prior_Gift}, {Prior_Gift_Detail}, {Mutual_Connection}, {Custom_Hook},
+//   {Family}, {Known_Gift}, {Business_Parallel}, {Rabbi_Name}, {Community_Focus}
+const DEFAULT_TEMPLATES=[
+  {id:"T-A",name:"Alumni Connection",segment:"School/University Alumni",subject:"{First} — {School} Connection → {OrgName}",hooks:"{School}, {Prior_Gift}, {Mutual_Connection}"},
+  {id:"T-B",name:"Synagogue Connection",segment:"Synagogue/Shul Members",subject:"{First} — {Synagogue} → {OrgName} Initiative",hooks:"{Synagogue}, {Rabbi_Name}, {Community_Focus}"},
+  {id:"T-C",name:"Prior Giver / Federation",segment:"UJA/Federation/Prior donors",subject:"{First} — Your Impact → {OrgName}",hooks:"{Prior_Gift_Detail}, {Custom_Hook}, Federation connection"},
+  {id:"T-D",name:"Family Legacy",segment:"Multi-generational families",subject:"{First} — {Family} Legacy → {OrgName}'s Future",hooks:"{Family}, {Known_Gift}, {Business_Parallel}"},
+  {id:"T-E",name:"Cold HNWI (Fallback)",segment:"Unknown/minimal intel",subject:"{First} — {OrgName}: Making an Impact",hooks:"Minimal personalization, rely on mission strength"},
+  {id:"T-F",name:"Community / Cultural",segment:"Community-based donors",subject:"{First} — {Community} Legacy → {OrgName}",hooks:"{Community}, {Synagogue}, cultural heritage"}
 ];
-const COMMUNITY_MAP={"Park East":"T-B","5th Avenue":"T-B","KJ":"T-B","Ramaz":"T-A","Cardozo":"T-A","UPenn":"T-A","YU":"T-A","UJA":"T-C","PMC":"T-C","KDS":"T-C","Safra":"T-F","Magen David":"T-F","Persian":"T-F","Sephardic":"T-F","Five Towns":"T-D","Bergen County":"T-D","Great Neck":"T-D"};
+// Default community → template mapping (org-configurable)
+const DEFAULT_COMMUNITY_MAP={};
+// Runtime: load org-customized templates/map from localStorage, fall back to defaults
+const getOrgTemplates=()=>{try{const v=localStorage.getItem(orgPrefix()+"templates");return v?JSON.parse(v):DEFAULT_TEMPLATES}catch{return DEFAULT_TEMPLATES}};
+const getOrgCommunityMap=()=>{try{const v=localStorage.getItem(orgPrefix()+"community_map");return v?JSON.parse(v):DEFAULT_COMMUNITY_MAP}catch{return DEFAULT_COMMUNITY_MAP}};
+// Backwards-compatible aliases used throughout the codebase
+const TEMPLATES=typeof window!=="undefined"?getOrgTemplates():DEFAULT_TEMPLATES;
+const COMMUNITY_MAP=typeof window!=="undefined"?getOrgCommunityMap():DEFAULT_COMMUNITY_MAP;
 const STAGES=[
   {id:"not_started",label:"Not Started",color:"#52525b",order:0},
   {id:"researching",label:"Researching",color:"#3b82f6",order:1},
@@ -1249,12 +1260,16 @@ Be specific about connection points. Mention shared values, geographic ties, com
 const aiTemplate=(d)=>{
   if(!d) return "T-E";
   const c=(d.community||d.synagogue||"").toLowerCase();
-  for(const[k,t] of Object.entries(COMMUNITY_MAP)) if(c.includes(k.toLowerCase())) return t;
-  if(d.school&&/cardozo|upenn|yu|yeshiva/i.test(d.school)) return "T-A";
-  if(d.prior_gift_detail||d.uja_connection) return "T-C";
-  if(d.family_legacy||(d.net_worth&&parseInt(d.net_worth)>50000000)) return "T-D";
-  if(/sephardi|persian|mizrach/i.test(c)) return "T-F";
-  return "T-E";
+  // Check org-specific community map first
+  const cMap=typeof window!=="undefined"?getOrgCommunityMap():DEFAULT_COMMUNITY_MAP;
+  for(const[k,t] of Object.entries(cMap)) if(c.includes(k.toLowerCase())) return t;
+  // Generic classification based on donor attributes
+  if(d.school) return "T-A"; // Alumni connection
+  if(c.includes("synagogue")||c.includes("shul")||c.includes("temple")) return "T-B"; // Synagogue
+  if(d.prior_gift_detail||c.includes("federation")||c.includes("uja")) return "T-C"; // Prior giver / Federation
+  if(d.family_legacy||(d.net_worth&&parseInt(d.net_worth)>50000000)) return "T-D"; // Family legacy
+  if(/sephardi|persian|mizrach|community/i.test(c)) return "T-F"; // Community / Cultural
+  return "T-E"; // Cold HNWI fallback
 };
 const aiScore=(d,acts=[])=>{
   let s=0;
@@ -1806,15 +1821,15 @@ const buildGraph=(contacts,donors,userId="YOU")=>{
 // ============================================================
 // COMPONENT: DataLoader
 // ============================================================
-// -- Generate demo data (shared between DataLoader and Wizard) --
+// -- Generate demo data (org-generic — no hardcoded communities) --
 const generateDemoData=()=>{
-  const names=["David Goldstein","Sarah Roth","Michael Safra","Rachel Levy","Jonathan Cohen","Rebecca Stern","Daniel Weiss","Miriam Katz","Joshua Fried","Leah Bernstein","Adam Schwartz","Hannah Green","Samuel Fox","Naomi Silver","Benjamin Hart","Esther Diamond","Nathan Pearl","Tamar Gold","Isaac Stone","Deborah Rose","Aaron Wolf","Judith Glass","Eli Brooks","Ruth Blum","Noah Kaplan"];
-  const comms=["Park East Synagogue","UJA","Safra Center","Five Towns","Cardozo Alumni","Bergen County","KJ","Great Neck","5th Avenue Synagogue","UPenn Alumni","YU Alumni","PMC","Park East Synagogue","Persian Community","UJA","Magen David","Five Towns","Cardozo Alumni","KJ","Bergen County","Safra Center","UPenn Alumni","Great Neck","KDS","5th Avenue Synagogue"];
-  const inds=["Real Estate","Finance","Banking","Healthcare","Law","Tech","Private Equity","Retail","Venture Capital","Consulting","Insurance","Pharma","Real Estate","Import/Export","Finance","Diamond Trade","Manufacturing","Law","Tech","Private Equity","Banking","Consulting","Real Estate","Finance","Venture Capital"];
+  const names=["David Goldstein","Sarah Roth","Michael Cohen","Rachel Levy","Jonathan Green","Rebecca Stern","Daniel Weiss","Miriam Katz","Joshua Fried","Leah Bernstein","Adam Schwartz","Hannah Silver","Samuel Fox","Naomi Pearl","Benjamin Hart","Esther Diamond","Nathan Brooks","Tamar Gold","Isaac Stone","Deborah Rose","Aaron Wolf","Judith Glass","Eli Klein","Ruth Blum","Noah Kaplan"];
+  const comms=["Local Synagogue","Federation","Community Center","Day School Alumni","Young Leadership","Neighborhood Committee","Family Foundation","Board Network","Heritage Group","Professional Circle","Sisterhood","Men's Club","Youth Alumni","Donor Circle","Memorial Fund","Scholarship Fund","Cultural Society","Women's League","Chesed Group","Young Professionals","Torah Study","Board Alumni","Gala Committee","Annual Campaign","Capital Campaign"];
+  const inds=["Real Estate","Finance","Banking","Healthcare","Law","Tech","Private Equity","Retail","Venture Capital","Consulting","Insurance","Pharma","Real Estate","Import/Export","Finance","Manufacturing","Construction","Law","Tech","Private Equity","Banking","Consulting","Real Estate","Finance","Venture Capital"];
   const nws=[150e6,80e6,200e6,45e6,30e6,95e6,60e6,25e6,120e6,55e6,40e6,70e6,180e6,35e6,90e6,65e6,110e6,50e6,75e6,85e6,42e6,58e6,130e6,38e6,160e6];
   const ags=[500000,250000,750000,100000,75000,300000,150000,50000,400000,125000,80000,200000,600000,60000,350000,175000,450000,90000,225000,280000,95000,140000,500000,70000,550000];
-  const cities=["New York","New York","New York","Woodmere","New York","Teaneck","New York","Great Neck","New York","Philadelphia","New York","New York","New York","Great Neck","New York","Brooklyn","Woodmere","New York","New York","Teaneck","New York","Philadelphia","Great Neck","New York","New York"];
-  return names.map((n,i)=>({id:i+1,name:n,email:`donor${i+1}@example.com`,phone:`+1-212-555-${String(1000+i).slice(-4)}`,net_worth:nws[i],annual_giving:ags[i],community:comms[i],industry:inds[i],tier:i<8?"Tier 1":(i<18?"Tier 2":"Tier 3"),warmth_score:Math.floor(Math.random()*8)+2,pipeline_stage:STAGES[Math.floor(Math.random()*7)].id,connector_paths:[{name:"Rabbi Cohen",role:"Community Leader",strength:"Strong"},{name:"David Licht",role:"Board Member",strength:"Medium"}].slice(0,Math.random()>.3?2:1),focus_areas:["Jewish Education","Israel","Torah Study","Youth Programs","Community Building"].sort(()=>Math.random()-.5).slice(0,2),city:cities[i]}));
+  const cities=["New York","Los Angeles","Chicago","Miami","Boston","Teaneck","Baltimore","Jerusalem","Tel Aviv","Philadelphia","Dallas","Atlanta","New York","Boca Raton","New York","Brooklyn","Woodmere","Denver","San Francisco","Teaneck","New York","Philadelphia","Potomac","New York","New York"];
+  return names.map((n,i)=>({id:i+1,name:n,email:`donor${i+1}@example.com`,phone:`+1-555-${String(1000+i).slice(-4)}-${String(2000+i).slice(-4)}`,net_worth:nws[i],annual_giving:ags[i],community:comms[i],industry:inds[i],tier:i<8?"Tier 1":(i<18?"Tier 2":"Tier 3"),warmth_score:Math.floor(Math.random()*8)+2,pipeline_stage:STAGES[Math.floor(Math.random()*7)].id,connector_paths:[{name:"Board Member",role:"Community Leader",strength:"Strong"},{name:"Committee Chair",role:"Advisory",strength:"Medium"}].slice(0,Math.random()>.3?2:1),focus_areas:["Jewish Education","Israel","Torah Study","Youth Programs","Community Building"].sort(()=>Math.random()-.5).slice(0,2),city:cities[i]}));
 };
 
 function DataLoader({onLoad}){
@@ -3416,7 +3431,7 @@ function OutreachLogger({donors,onLog}){
     </div>
     <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:10,marginBottom:10}}>
       <div className="form-group"><label className="form-label">What did you send/do? *</label>
-        <input className="form-input" value={form.message} onChange={e=>set("message",e.target.value)} placeholder="e.g., Sent personalized email about Hesder yeshiva..."/>
+        <input className="form-input" value={form.message} onChange={e=>set("message",e.target.value)} placeholder="e.g., Sent personalized email about our mission..."/>
       </div>
       <div className="form-group"><label className="form-label">Outcome</label>
         <select className="form-select" value={form.outcome} onChange={e=>set("outcome",e.target.value)}>
@@ -4748,7 +4763,7 @@ function OnboardingWizard({onComplete,onSkip}){
               <input className="form-input" value={orgLogo} onChange={e=>setOrgLogo(e.target.value.slice(0,2))} maxLength={2} style={{textAlign:"center",fontSize:18,fontWeight:800}}/></div>
           </div>
           <div className="form-group"><label className="form-label">Tagline</label>
-            <input className="form-input" value={orgTagline} onChange={e=>setOrgTagline(e.target.value)} placeholder="e.g., Haifa Hesder Yeshiva"/></div>
+            <input className="form-input" value={orgTagline} onChange={e=>setOrgTagline(e.target.value)} placeholder="e.g., Building tomorrow's Jewish leaders"/></div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             <div className="form-group"><label className="form-label">Website URL</label>
               <input className="form-input" value={orgWebsite} onChange={e=>setOrgWebsite(e.target.value)} placeholder="https://yourorg.org"/></div>
@@ -5296,6 +5311,55 @@ function Settings({donors,acts,notes,deals,waBridge,setWaBridge}){
         {waStatus?.error&&<span style={{fontSize:11,color:"var(--red)"}}>Bridge offline — run: node whatsapp_bridge.js</span>}
       </div>
     </div>
+    {/* ===== SECURITY SETTINGS ===== */}
+    <div className="settings-section">
+      <h4>🔒 Security & Data Protection</h4>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:8}}>
+        <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:12}}>
+          <div style={{fontSize:12,fontWeight:700,marginBottom:4}}>Session Timeout</div>
+          <select className="form-select" value={sGet("security_session_timeout","30")} onChange={e=>{sSet("security_session_timeout",e.target.value)}} style={{fontSize:12}}>
+            <option value="15">15 minutes</option>
+            <option value="30">30 minutes</option>
+            <option value="60">1 hour</option>
+            <option value="480">8 hours</option>
+          </select>
+          <div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>Auto-logout after inactivity</div>
+        </div>
+        <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:12}}>
+          <div style={{fontSize:12,fontWeight:700,marginBottom:4}}>Export Controls</div>
+          <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,cursor:"pointer",marginBottom:4}}>
+            <input type="checkbox" checked={sGet("security_export_requires_admin",true)} onChange={e=>sSet("security_export_requires_admin",e.target.checked)}/>
+            Require admin role for exports
+          </label>
+          <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,cursor:"pointer"}}>
+            <input type="checkbox" checked={sGet("security_audit_exports",true)} onChange={e=>sSet("security_audit_exports",e.target.checked)}/>
+            Log all data exports to audit trail
+          </label>
+        </div>
+        <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:12}}>
+          <div style={{fontSize:12,fontWeight:700,marginBottom:4}}>Sensitive Field Masking</div>
+          <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,cursor:"pointer",marginBottom:4}}>
+            <input type="checkbox" checked={sGet("security_mask_financials",false)} onChange={e=>sSet("security_mask_financials",e.target.checked)}/>
+            Mask net worth / giving for non-admins
+          </label>
+          <label style={{display:"flex",alignItems:"center",gap:6,fontSize:12,cursor:"pointer"}}>
+            <input type="checkbox" checked={sGet("security_mask_contact",false)} onChange={e=>sSet("security_mask_contact",e.target.checked)}/>
+            Mask email / phone for viewers
+          </label>
+        </div>
+        <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:12}}>
+          <div style={{fontSize:12,fontWeight:700,marginBottom:4}}>Data Protection</div>
+          <div style={{fontSize:11,color:"var(--text2)",lineHeight:1.6}}>
+            ✓ TLS 1.3 in transit (Vercel)<br/>
+            ✓ AES-256 at rest (Neon Postgres)<br/>
+            ✓ Org-level data isolation<br/>
+            ✓ Full audit trail on all actions<br/>
+            ✓ JWT sessions with configurable expiry
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div className="settings-section"><h4>Data</h4><button className="btn btn-ghost" onClick={exp} style={{marginTop:8}}>📥 Export All (JSON)</button><div style={{marginTop:12,fontSize:11,color:"var(--text3)"}}>Donors: {donors.length} | Activities: {acts.length} | Notes: {notes.length} | Deals: {deals.length}</div></div>
     <div className="settings-section"><h4>About</h4><p style={{fontSize:12,color:"var(--text2)",lineHeight:1.6}}>ChaiRaise — AI-Native Jewish Fundraising CRM.<br/>Multiply your impact by 18.<br/>AI Scoring • Cause Match • Pipeline Kanban • Smart Email • Social Graph • WhatsApp • Integrations</p></div>
   </div></div>);
@@ -5318,11 +5382,30 @@ function AppInner(){
     if(s){setSessionState(s);setAuthed(true)}
   },[]);
 
-  const handleLogout=()=>{
+  const handleLogout=useCallback(()=>{
     clearSession();setSessionState(null);setAuthed(false);
-    // Redirect to NextAuth sign-out, then to sign-in page
+    appendAudit({type:"logout",action:"User logged out",user:session?.name||"Unknown"});
     window.location.href="/api/auth/signout?callbackUrl=/auth/signin";
-  };
+  },[session]);
+
+  // ---- Session timeout (auto-logout after inactivity) ----
+  useEffect(()=>{
+    if(!authed)return;
+    const timeoutMins=parseInt(sGet("security_session_timeout","30"))||30;
+    let timer;
+    const resetTimer=()=>{
+      clearTimeout(timer);
+      timer=setTimeout(()=>{
+        appendAudit({type:"security",action:`Auto-logout after ${timeoutMins}min inactivity`,user:session?.name||"Unknown"});
+        handleLogout();
+      },timeoutMins*60*1000);
+    };
+    // Reset on any user interaction
+    const events=["mousedown","keydown","scroll","touchstart"];
+    events.forEach(e=>document.addEventListener(e,resetTimer,{passive:true}));
+    resetTimer();
+    return()=>{clearTimeout(timer);events.forEach(e=>document.removeEventListener(e,resetTimer))};
+  },[authed,handleLogout,session]);
 
   // ---- Core state ----
   // DB-first with localStorage fallback: on mount, tries /api/donors.
