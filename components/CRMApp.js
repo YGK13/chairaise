@@ -1990,6 +1990,81 @@ function Dashboard({donors,acts,deals,reminders,outreachLog,session,useDB,dbLoad
       </div>);
     })()}
 
+    {/* ===== DAILY ACTION QUEUE — "Who should I call today?" ===== */}
+    {(()=>{
+      // Build prioritized action list from multiple signals
+      const actions=[];
+      const todayStr=new Date().toISOString().slice(0,10);
+
+      // 1. Overdue reminders (highest priority)
+      (reminders||[]).filter(r=>!r.done&&r.date<=todayStr).forEach(r=>{
+        const d=donors.find(dd=>(dd.id||dd.name)===r.did);
+        if(d)actions.push({priority:100,type:"reminder",icon:"📌",label:"Follow up",donor:d,detail:r.summary,date:r.date,urgency:r.date<todayStr?"overdue":"today"});
+      });
+
+      // 2. Hot donors: responded but no meeting scheduled yet
+      donors.filter(d=>(d.pipeline_stage||"not_started")==="responded").forEach(d=>{
+        if(!actions.find(a=>a.donor&&(a.donor.id||a.donor.name)===(d.id||d.name)))
+          actions.push({priority:90,type:"hot",icon:"🔥",label:"Schedule meeting",donor:d,detail:"Responded — strike while warm",urgency:"hot"});
+      });
+
+      // 3. Proposals sent — follow up for commitment
+      donors.filter(d=>(d.pipeline_stage||"not_started")==="proposal_sent").forEach(d=>{
+        const lastAct=acts.filter(a=>a.did===(d.id||d.name)).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+        const days=lastAct?Math.round((Date.now()-new Date(lastAct.date))/864e5):999;
+        if(days>=3&&!actions.find(a=>a.donor&&(a.donor.id||a.donor.name)===(d.id||d.name)))
+          actions.push({priority:85,type:"proposal",icon:"📋",label:"Follow up on proposal",donor:d,detail:`Proposal sent ${days}d ago`,urgency:days>=7?"overdue":"normal"});
+      });
+
+      // 4. Meetings held — send proposal
+      donors.filter(d=>(d.pipeline_stage||"not_started")==="meeting_held").forEach(d=>{
+        if(!actions.find(a=>a.donor&&(a.donor.id||a.donor.name)===(d.id||d.name)))
+          actions.push({priority:80,type:"next_step",icon:"📨",label:"Send proposal",donor:d,detail:"Meeting held — ready for ask",urgency:"normal"});
+      });
+
+      // 5. Tier 1 donors stuck at researching/intro_requested for 7+ days
+      donors.filter(d=>d.tier==="Tier 1"&&["researching","intro_requested"].includes(d.pipeline_stage||"not_started")).forEach(d=>{
+        const lastAct=acts.filter(a=>a.did===(d.id||d.name)).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+        const days=lastAct?Math.round((Date.now()-new Date(lastAct.date))/864e5):999;
+        if(days>=7&&!actions.find(a=>a.donor&&(a.donor.id||a.donor.name)===(d.id||d.name)))
+          actions.push({priority:70,type:"stuck",icon:"⏳",label:"Push forward",donor:d,detail:`T1 stuck ${days}d at ${STAGES.find(s=>s.id===d.pipeline_stage)?.label||"early stage"}`,urgency:"normal"});
+      });
+
+      // Sort by priority, take top 6
+      actions.sort((a,b)=>b.priority-a.priority);
+      const topActions=actions.slice(0,6);
+
+      if(topActions.length===0)return null;
+
+      const urgencyColors={overdue:"var(--red)",hot:"var(--orange)",today:"var(--accent)",normal:"var(--text3)"};
+
+      return(<div style={{marginBottom:16,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-lg)",padding:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:18}}>⚡</span>
+            <h3 style={{fontSize:14,fontWeight:700,margin:0}}>Today's Priority Actions</h3>
+            <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:"var(--accent-soft)",color:"var(--accent)",fontWeight:700}}>{topActions.length}</span>
+          </div>
+          <span style={{fontSize:10,color:"var(--text4)"}}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"short",day:"numeric"})}</span>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+          {topActions.map((a,i)=>(
+            <div key={i} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:"10px 12px",display:"flex",gap:10,alignItems:"flex-start"}}>
+              <div style={{fontSize:18,flexShrink:0,marginTop:2}}>{a.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:2}}>
+                  <span style={{fontSize:12,fontWeight:700,color:urgencyColors[a.urgency]||"var(--text)"}}>{a.label}</span>
+                  {a.donor.tier&&<span className={"cell-tier "+(TIERS[a.donor.tier]?.cls||"t3")} style={{fontSize:9}}>{a.donor.tier?.replace("Tier ","T")}</span>}
+                </div>
+                <div style={{fontSize:12,fontWeight:600,marginBottom:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.donor.name}</div>
+                <div style={{fontSize:10,color:"var(--text4)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.detail}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>);
+    })()}
+
     <div className="dash-row">
       <div className="dash-panel"><h3>Pipeline Funnel</h3>
         {ps.map(s=><div className="funnel-row" key={s.id}><div className="funnel-label">{s.label}</div><div className="funnel-bar-bg"><div className="funnel-bar-fill" style={{width:`${Math.max((s.count/mx)*100,s.count>0?8:0)}%`,background:s.color}}>{s.count>0&&<span>{s.count}</span>}</div></div><div className="funnel-count">{s.count}</div></div>)}
