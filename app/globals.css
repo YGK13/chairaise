@@ -405,4 +405,95 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .team-stat .ts-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;}
 /* ============ Print-ready report styles ============ */
 @media print{.nav-rail,.top-bar,.sub-nav,.bulk-bar,.detail-overlay,.detail-panel,.modal-overlay,.cmd-overlay,.wizard-overlay,.toast-container,.notif-panel,.auth-overlay{display:none!important;}.app-shell{display:block!important;}.main-area{display:block!important;}.content-area{display:block!important;overflow:visible!important;}.content-scroll{overflow:visible!important;padding:0!important;}body{background:#fff!important;color:#000!important;font-size:11pt;}.stat-card,.dash-panel,.campaign-card,.chart-container,.kpi-card{break-inside:avoid;border:1px solid #ccc!important;background:#fff!important;}}
-@media(max-width:900px){.dash-grid{grid-template-columns:1fr 1fr;}.dash-row{grid-template-columns:1fr;}.donor-form-grid{grid-template-columns:1fr;}.net-stats{grid-template-columns:repeat(3,1fr);}.kpi-grid{grid-template-columns:repeat(3,1fr);}.admin-grid{grid-template-columns:1fr;}.export-grid{grid-template-columns:1fr;}}
+/* ============================================================
+   MOBILE RESPONSIVE — tablet + phone breakpoints
+   ============================================================ */
+
+/* Tablet: 600-900px — stack grids, shrink nav */
+@media(max-width:900px){
+  .dash-grid{grid-template-columns:1fr 1fr;}
+  .dash-row{grid-template-columns:1fr;}
+  .donor-form-grid{grid-template-columns:1fr;}
+  .net-stats{grid-template-columns:repeat(3,1fr);}
+  .kpi-grid{grid-template-columns:repeat(3,1fr);}
+  .admin-grid{grid-template-columns:1fr;}
+  .export-grid{grid-template-columns:1fr;}
+  .board{flex-wrap:nowrap;overflow-x:auto;}
+  .board-col{min-width:240px;max-width:240px;}
+  .team-stats{grid-template-columns:repeat(2,1fr);}
+}
+
+/* Phone: <640px — bottom nav, full-width everything */
+@media(max-width:640px){
+  /* Convert side nav rail to bottom tab bar */
+  .app-shell{flex-direction:column-reverse;height:100vh;height:100dvh;}
+  .nav-rail{
+    width:100%;min-width:100%;height:56px;min-height:56px;
+    flex-direction:row;border-right:none;border-top:1px solid var(--border);
+    padding:0 4px;gap:0;overflow-x:auto;overflow-y:hidden;
+    justify-content:space-around;
+    -webkit-overflow-scrolling:touch;
+  }
+  .nav-rail::-webkit-scrollbar{display:none;}
+  .nav-logo{width:28px;height:28px;margin-bottom:0;margin-right:4px;font-size:11px;border-radius:6px;flex-shrink:0;}
+  .nav-item{width:36px;height:36px;font-size:16px;flex-shrink:0;}
+  .nav-spacer{display:none;}
+  .main-area{flex:1;min-height:0;}
+  .top-bar{height:44px;min-height:44px;padding:0 12px;gap:8px;}
+  .top-bar .page-title{font-size:13px;}
+  .top-bar .page-subtitle{display:none;}
+  .search-global{max-width:none;}
+  .search-global input{font-size:14px;padding:8px 12px;}
+  .sub-nav{padding:0 8px;height:36px;min-height:36px;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .sub-nav::-webkit-scrollbar{display:none;}
+  .sub-tab{padding:6px 10px;font-size:11px;white-space:nowrap;}
+  .content-scroll{padding:12px;}
+
+  /* Dashboard */
+  .dash-grid{grid-template-columns:1fr 1fr;}
+  .kpi-grid{grid-template-columns:1fr 1fr;}
+  .stat-card{padding:12px 10px;}
+  .stat-card .sc-val{font-size:18px;}
+
+  /* Donor list */
+  .list-table{font-size:12px;}
+  .list-table thead th{padding:6px 8px;font-size:10px;}
+  .list-table tbody td{padding:8px;font-size:12px;}
+  .cell-name .avatar{width:24px;height:24px;font-size:9px;}
+
+  /* Kanban board */
+  .board{padding:8px;}
+  .board-col{min-width:220px;max-width:220px;}
+
+  /* Detail panel */
+  .detail-panel{width:100%!important;max-width:100%!important;right:0!important;}
+
+  /* Modals */
+  .modal-overlay{padding:8px!important;align-items:flex-end!important;}
+  .modal{width:100%!important;max-width:100%!important;max-height:90vh!important;border-radius:var(--radius-lg) var(--radius-lg) 0 0!important;}
+  .cmd-overlay .cmd-modal{width:100%!important;max-width:100%!important;margin:8px!important;}
+
+  /* Wizard */
+  .wizard-overlay{padding:0!important;}
+  .wizard-card{width:100%!important;max-width:100%!important;min-height:100vh!important;border-radius:0!important;}
+  .wizard-steps{flex-wrap:wrap;gap:4px;}
+  .wizard-step{font-size:10px;padding:4px 8px;}
+
+  /* Auth */
+  .auth-overlay{padding:0!important;}
+  .auth-card{width:100%!important;max-width:100%!important;min-height:100vh!important;border-radius:0!important;display:flex;flex-direction:column;justify-content:center;}
+
+  /* Network graph */
+  .net-stats{grid-template-columns:1fr 1fr;}
+
+  /* Form elements — larger touch targets */
+  .form-input,.form-select,.form-textarea{font-size:16px!important;padding:10px 12px!important;}
+  .btn{padding:10px 16px;font-size:13px;min-height:40px;}
+  .btn-sm{padding:8px 12px;font-size:12px;min-height:36px;}
+
+  /* Notification panel */
+  .notif-panel{right:-40px!important;width:calc(100vw - 16px)!important;max-width:360px!important;}
+
+  /* Landing page adjustments */
+  .team-stats{grid-template-columns:1fr 1fr;}
+}
