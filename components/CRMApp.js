@@ -1925,6 +1925,56 @@ function Dashboard({donors,acts,deals,reminders,outreachLog,session,useDB,dbLoad
       </div>
     </div>
 
+    {/* ===== LAPSE DETECTION — donors going cold ===== */}
+    {(()=>{
+      // Find donors in active pipeline who haven't been contacted recently
+      const lapsingDonors=donors.filter(d=>{
+        const si=STAGES.findIndex(s=>s.id===(d.pipeline_stage||"not_started"));
+        if(si<1)return false; // Skip not_started
+        const donorActs=acts.filter(a=>a.did===(d.id||d.name));
+        if(!donorActs.length)return si>=1; // In pipeline but never contacted
+        const latest=donorActs.sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+        const daysSince=Math.round((Date.now()-new Date(latest.date))/864e5);
+        // Tier-based thresholds: T1 goes cold faster (more attention needed)
+        const threshold=d.tier==="Tier 1"?14:d.tier==="Tier 2"?21:30;
+        return daysSince>=threshold;
+      }).map(d=>{
+        const donorActs=acts.filter(a=>a.did===(d.id||d.name));
+        const latest=donorActs.sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+        const daysSince=latest?Math.round((Date.now()-new Date(latest.date))/864e5):999;
+        return{...d,daysSince,lastActivity:latest};
+      }).sort((a,b)=>{
+        // T1 first, then by days since last contact (most urgent first)
+        if(a.tier!==b.tier)return a.tier==="Tier 1"?-1:b.tier==="Tier 1"?1:a.tier==="Tier 2"?-1:1;
+        return b.daysSince-a.daysSince;
+      }).slice(0,8);
+
+      if(lapsingDonors.length===0)return null;
+
+      return(<div style={{marginBottom:16,background:"var(--surface)",border:"1px solid rgba(239,68,68,0.2)",borderRadius:"var(--radius-lg)",padding:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{fontSize:18}}>🚨</span>
+            <h3 style={{fontSize:14,fontWeight:700,margin:0}}>Going Cold — Action Required</h3>
+            <span style={{fontSize:10,padding:"2px 8px",borderRadius:10,background:"var(--red-soft)",color:"var(--red)",fontWeight:700}}>{lapsingDonors.length}</span>
+          </div>
+          <span style={{fontSize:10,color:"var(--text4)"}}>Tier 1: 14d | Tier 2: 21d | Tier 3: 30d thresholds</span>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
+          {lapsingDonors.map(d=>(
+            <div key={d.id||d.name} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:"10px 12px",cursor:"pointer"}} title={`Last activity: ${d.lastActivity?.summary||"None"}`}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+                <span style={{fontSize:12,fontWeight:700}}>{d.name?.split(" ").slice(0,2).join(" ")}</span>
+                <span className={"cell-tier "+(TIERS[d.tier]?.cls||"t3")} style={{fontSize:9}}>{d.tier?.replace("Tier ","T")}</span>
+              </div>
+              <div style={{fontSize:11,color:"var(--red)",fontWeight:700}}>{d.daysSince>=999?"Never contacted":`${d.daysSince} days silent`}</div>
+              <div style={{fontSize:10,color:"var(--text4)",marginTop:2}}>{d.lastActivity?d.lastActivity.type+": "+d.lastActivity.summary?.slice(0,30):"No activities recorded"}</div>
+            </div>
+          ))}
+        </div>
+      </div>);
+    })()}
+
     <div className="dash-row">
       <div className="dash-panel"><h3>Pipeline Funnel</h3>
         {ps.map(s=><div className="funnel-row" key={s.id}><div className="funnel-label">{s.label}</div><div className="funnel-bar-bg"><div className="funnel-bar-fill" style={{width:`${Math.max((s.count/mx)*100,s.count>0?8:0)}%`,background:s.color}}>{s.count>0&&<span>{s.count}</span>}</div></div><div className="funnel-count">{s.count}</div></div>)}
