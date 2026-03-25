@@ -4444,11 +4444,16 @@ function OrgSwitcher({currentOrg,onClose}){
 // COMPONENT: IntegrationHub — connect fundraising platforms
 // ============================================================
 const INTEGRATIONS=[
-  {id:"israelgives",name:"IsraelGives",icon:"🇮🇱",type:"csv",desc:"CSV/XML import from IsraelGives exports",fields:[],status:"active",help:"Export donors from IsraelGives → Data Export → CSV, then upload here"},
-  {id:"donorbox",name:"Donorbox",icon:"📦",type:"api",desc:"REST API integration ($17/mo plan)",fields:["api_key"],status:"active",help:"Get API key from Donorbox → Settings → API. Requires paid plan."},
-  {id:"charidy",name:"Charidy",icon:"💝",type:"api",desc:"Campaign donation data via API",fields:["api_key","campaign_id"],status:"coming_soon",help:"Contact support@charidy.com for API access"},
-  {id:"givebutter",name:"Givebutter",icon:"🧈",type:"api",desc:"Public API with 1000+ Zapier integrations",fields:["api_key"],status:"coming_soon",help:"Get API key from Givebutter → Settings → Developer"},
-  {id:"chesed_fund",name:"The Chesed Fund",icon:"🤲",type:"csv",desc:"Manual CSV export (no API available)",fields:[],status:"active",help:"Download your donor list from The Chesed Fund dashboard as CSV"},
+  {id:"israelgives",name:"IsraelGives",icon:"🇮🇱",type:"csv",desc:"Import donors & donations from IsraelGives CSV exports",fields:[],status:"active",
+    help:"In IsraelGives: Dashboard → Contacts/Donations → Export CSV. Upload here. Auto-maps Hebrew/English columns (שם, דוא\"ל, סכום, etc.).",
+    columnMap:{name:[/^(name|full.?name|שם|שם מלא|donor.?name)/i],email:[/^(email|e-?mail|דוא"ל|אימייל)/i],phone:[/^(phone|tel|טלפון|נייד)/i],amount:[/^(amount|sum|סכום|donation|תרומה)/i],city:[/^(city|עיר|address|כתובת)/i],date:[/^(date|תאריך|donation.?date)/i],campaign:[/^(campaign|קמפיין|מבצע)/i],receipt:[/^(receipt|קבלה|receipt.?no)/i],comment:[/^(comment|הערה|notes|הערות)/i]}
+  },
+  {id:"donorbox",name:"Donorbox",icon:"📦",type:"csv",desc:"CSV export from Donorbox campaigns",fields:[],status:"active",help:"In Donorbox: Donations → Export CSV. Supports recurring donor tracking."},
+  {id:"charidy",name:"Charidy",icon:"💝",type:"csv",desc:"Export campaign donation data as CSV",fields:[],status:"active",help:"In Charidy: Campaign → Donors → Download CSV"},
+  {id:"givebutter",name:"Givebutter",icon:"🧈",type:"csv",desc:"CSV export with Zapier automation support",fields:[],status:"active",help:"In Givebutter: Supporters → Export. Or use Zapier for real-time sync."},
+  {id:"chesed_fund",name:"The Chesed Fund",icon:"🤲",type:"csv",desc:"Manual CSV export from Chesed Fund dashboard",fields:[],status:"active",help:"Download your donor list from The Chesed Fund dashboard as CSV"},
+  {id:"jgive",name:"JGive",icon:"🕎",type:"csv",desc:"Import from JGive campaign exports",fields:[],status:"active",help:"In JGive: Campaigns → Donations → Export"},
+  {id:"zapier",name:"Zapier Webhook",icon:"⚡",type:"webhook",desc:"Real-time sync from any platform via Zapier",fields:["webhook_url"],status:"active",help:"Create a Zap: Trigger (IsraelGives/Donorbox/etc.) → Webhook POST to your ChaiRaise webhook URL. URL shown after connecting."},
   {id:"generic",name:"Generic CSV",icon:"📊",type:"csv",desc:"Import from any CSV/Excel source",fields:[],status:"active",help:"Any CSV with at least a 'name' column will work"},
 ];
 
@@ -4478,22 +4483,37 @@ function IntegrationHub({donors,onImportDonors}){
       if(parsed.length<2){setUploadResult({error:"CSV needs header + data rows"});setUploading(false);return}
       const headers=parsed[0];
       const rows=parsed.slice(1);
-      // Auto-map common column names
-      const nameCol=headers.findIndex(h=>/^(name|full.?name|donor.?name|שם)/i.test(h));
-      const emailCol=headers.findIndex(h=>/^(email|e-?mail|דוא"ל)/i.test(h));
-      const phoneCol=headers.findIndex(h=>/^(phone|tel|טלפון)/i.test(h));
-      const amtCol=headers.findIndex(h=>/^(amount|donation|sum|סכום)/i.test(h));
-      const cityCol=headers.findIndex(h=>/^(city|עיר)/i.test(h));
+
+      // Platform-specific column mapping (IsraelGives has Hebrew headers)
+      const platform=INTEGRATIONS.find(i=>i.id===platformId);
+      const cmap=platform?.columnMap||{};
+
+      // Auto-map columns — use platform-specific patterns first, then generic fallbacks
+      const findCol=(patterns)=>headers.findIndex(h=>patterns.some(p=>p.test(h)));
+      const nameCol=cmap.name?findCol(cmap.name):headers.findIndex(h=>/^(name|full.?name|donor.?name|שם)/i.test(h));
+      const emailCol=cmap.email?findCol(cmap.email):headers.findIndex(h=>/^(email|e-?mail|דוא"ל)/i.test(h));
+      const phoneCol=cmap.phone?findCol(cmap.phone):headers.findIndex(h=>/^(phone|tel|טלפון)/i.test(h));
+      const amtCol=cmap.amount?findCol(cmap.amount):headers.findIndex(h=>/^(amount|donation|sum|סכום)/i.test(h));
+      const cityCol=cmap.city?findCol(cmap.city):headers.findIndex(h=>/^(city|עיר)/i.test(h));
+      const dateCol=cmap.date?findCol(cmap.date):headers.findIndex(h=>/^(date|תאריך)/i.test(h));
+      const campaignCol=cmap.campaign?findCol(cmap.campaign):headers.findIndex(h=>/^(campaign|קמפיין)/i.test(h));
+      const commentCol=cmap.comment?findCol(cmap.comment):headers.findIndex(h=>/^(comment|note|הערה)/i.test(h));
+
       if(nameCol===-1){setUploadResult({error:"No 'name' column found. Headers: "+headers.join(", ")});setUploading(false);return}
       const imported=[];
       rows.forEach((row,i)=>{
         const name=(row[nameCol]||"").trim();
         if(!name)return;
-        const donor={id:Date.now()+i,name,pipeline_stage:"not_started"};
+        const donor={id:Date.now()+i,name,pipeline_stage:"not_started",import_source:platformId,import_date:new Date().toISOString()};
         if(emailCol>=0&&row[emailCol])donor.email=row[emailCol].trim();
         if(phoneCol>=0&&row[phoneCol])donor.phone=row[phoneCol].trim();
-        if(amtCol>=0&&row[amtCol])donor.annual_giving=parseInt(row[amtCol].replace(/[$,₪]/g,""))||0;
+        if(amtCol>=0&&row[amtCol])donor.annual_giving=parseInt(String(row[amtCol]).replace(/[$,₪\s]/g,""))||0;
         if(cityCol>=0&&row[cityCol])donor.city=row[cityCol].trim();
+        if(dateCol>=0&&row[dateCol])donor.last_gift_date=row[dateCol].trim();
+        if(campaignCol>=0&&row[campaignCol])donor.import_campaign=row[campaignCol].trim();
+        if(commentCol>=0&&row[commentCol])donor.notes=row[commentCol].trim();
+        // Tag with source platform for tracking
+        donor.tags=[...(donor.tags||[]),`imported:${platformId}`];
         imported.push(donor);
       });
       // Deduplicate against existing donors
