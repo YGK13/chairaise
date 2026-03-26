@@ -32,6 +32,881 @@ const TEMPLATES=typeof window!=="undefined"?getOrgTemplates():DEFAULT_TEMPLATES;
 const COMMUNITY_MAP=typeof window!=="undefined"?getOrgCommunityMap():DEFAULT_COMMUNITY_MAP;
 
 // ============================================================
+// TOAST / NOTIFICATION SYSTEM — global notifications
+// ============================================================
+const ToastContext=createContext({addToast:()=>{},toasts:[]});
+
+function ToastProvider({children}){
+  const[toasts,setToasts]=useState([]);
+  const addToast=useCallback((toast)=>{
+    const id=Date.now()+Math.random();
+    const newToast={...toast,id,created:Date.now()};
+    setToasts(p=>[...p,newToast]);
+    setTimeout(()=>setToasts(p=>p.filter(t=>t.id!==id)),5000);
+  },[]);
+  const removeToast=useCallback((id)=>setToasts(p=>p.filter(t=>t.id!==id)),[]);
+  const icons={success:"✅",warning:"⚠️",error:"❌",info:"ℹ️"};
+
+  return(<ToastContext.Provider value={{addToast,toasts}}>
+    {children}
+    <div className="toast-container">
+      {toasts.map(t=><div key={t.id} className={"toast "+(t.type||"info")}>
+        <div className="toast-icon">{icons[t.type||"info"]}</div>
+        <div className="toast-body">
+          <div className="toast-title">{t.title}</div>
+          {t.message&&<div className="toast-msg">{t.message}</div>}
+        </div>
+        <div className="toast-close" onClick={()=>removeToast(t.id)}>✕</div>
+      </div>)}
+    </div>
+  </ToastContext.Provider>);
+}
+
+const useToast=()=>useContext(ToastContext);
+
+// ============================================================
+// NOTIFICATION BELL — persistent notifications with bell icon
+// ============================================================
+function NotificationBell({reminders,donors,outreachLog,acts}){
+  const[open,setOpen]=useState(false);
+  const ref=useRef();
+  useEffect(()=>{
+    const handler=(e)=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false)};
+    document.addEventListener("mousedown",handler);
+    return()=>document.removeEventListener("mousedown",handler);
+  },[]);
+  const notifications=useMemo(()=>{
+    const notifs=[];
+    const today=new Date().toISOString().slice(0,10);
+    const weekAgo=new Date(Date.now()-7*864e5).toISOString().slice(0,10);
+    reminders.filter(r=>!r.done&&r.date<today).forEach(r=>{
+      const d=donors.find(dd=>(dd.id||dd.name)===r.did);
+      notifs.push({id:"rem_"+r.id,type:"overdue",icon:"⚠️",iconBg:"var(--red-soft)",iconColor:"var(--red)",
+        title:"Overdue Follow-up",msg:`${d?.name||"Unknown"}: ${r.summary}`,time:r.date,unread:true});
+    });
+    reminders.filter(r=>!r.done&&r.date===today).forEach(r=>{
+      const d=donors.find(dd=>(dd.id||dd.name)===r.did);
+      notifs.push({id:"today_"+r.id,type:"today",icon:"📌",iconBg:"var(--accent-soft)",iconColor:"var(--accent)",
+        title:"Due Today",msg:`${d?.name||"Unknown"}: ${r.summary}`,time:r.date,unread:true});
+    });
+    donors.filter(d=>{
+      const si=STAGES.findIndex(s=>s.id===(d.pipeline_stage||"not_started"));
+      if(si<1)return false;
+      const donorActs=acts.filter(a=>a.did===(d.id||d.name));
+      if(!donorActs.length)return true;
+      const latest=donorActs.sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+      return(Date.now()-new Date(latest.date))/864e5>30;
+    }).slice(0,5).forEach(d=>{
+      notifs.push({id:"stale_"+d.id,type:"stale",icon:"⏰",iconBg:"var(--blue-soft)",iconColor:"var(--blue)",
+        title:"Going Cold",msg:`${d.name} — no activity in 30+ days`,time:today,unread:true});
+    });
+    outreachLog.filter(e=>e.outcome==="positive"&&e.date>=weekAgo).slice(0,3).forEach(e=>{
+      const d=donors.find(dd=>(dd.id||dd.name)===e.donorId);
+      notifs.push({id:"pos_"+e.date+e.donorId,type:"positive",icon:"🎉",iconBg:"var(--green-soft)",iconColor:"var(--green)",
+        title:"Positive Response",msg:`${d?.name||"Unknown"} responded positively via ${e.channel}`,time:e.date,unread:false});
+    });
+    return notifs.sort((a,b)=>a.unread===b.unread?0:a.unread?-1:1);
+  },[reminders,donors,acts,outreachLog]);
+  const unreadCount=notifications.filter(n=>n.unread).length;
+  return(<div ref={ref} style={{position:"relative"}}>
+    <div className="nav-item" onClick={()=>setOpen(!open)} title="Notifications" style={{position:"relative"}}>
+      🔔
+      {unreadCount>0&&<div style={{position:"absolute",top:2,right:2,width:16,height:16,borderRadius:8,background:"var(--red)",fontSize:9,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>{unreadCount>9?"9+":unreadCount}</div>}
+    </div>
+    {open&&<div className="notif-panel">
+      <div className="notif-header"><h4>Notifications</h4><span style={{fontSize:10,color:"var(--text3)"}}>{unreadCount} unread</span></div>
+      <div className="notif-list">
+        {notifications.length===0&&<div style={{padding:32,textAlign:"center",color:"var(--text3)",fontSize:12}}>All caught up! No notifications.</div>}
+        {notifications.map(n=>(
+          <div className={"notif-item"+(n.unread?" unread":"")} key={n.id}>
+            <div className="ni-icon" style={{background:n.iconBg,color:n.iconColor}}>{n.icon}</div>
+            <div className="ni-body">
+              <div className="ni-title">{n.title}</div>
+              <div className="ni-msg">{n.msg}</div>
+              <div className="ni-time">{fmtD(n.time)}</div>
+            </div>
+            {n.unread&&<div className="notif-dot"/>}
+          </div>
+        ))}
+      </div>
+    </div>}
+  </div>);
+}
+
+
+// ============================================================
+// RESTORED COMPONENTS (were accidentally deleted during monolith split)
+// ============================================================
+function ExportPanel({donors,acts,deals,campaigns,reminders,outreachLog}){
+  const{addToast}=useToast();
+
+  const exportDonors=(filter)=>{
+    let data=[...donors];
+    if(filter==="tier1")data=data.filter(d=>d.tier==="Tier 1");
+    if(filter==="active")data=data.filter(d=>{const si=STAGES.findIndex(s=>s.id===(d.pipeline_stage||"not_started"));return si>=1&&si<9});
+    exportToCSV(data,`donors_${filter||"all"}_${new Date().toISOString().slice(0,10)}.csv`,DONOR_EXPORT_COLS);
+    addToast({type:"success",title:"Export Complete",message:`${data.length} donors exported to CSV`});
+  };
+
+  const exportActivities=()=>{
+    exportToCSV(acts,`activities_${new Date().toISOString().slice(0,10)}.csv`,ACT_EXPORT_COLS);
+    addToast({type:"success",title:"Export Complete",message:`${acts.length} activities exported`});
+  };
+
+  const exportDeals=()=>{
+    const cols=[{key:"did",label:"Donor"},{key:"amt",label:"Amount"},{key:"stage",label:"Stage"},{key:"created",label:"Created"}];
+    exportToCSV(deals,`deals_${new Date().toISOString().slice(0,10)}.csv`,cols);
+    addToast({type:"success",title:"Export Complete",message:`${deals.length} deals exported`});
+  };
+
+  const exportOutreach=()=>{
+    const cols=[{key:"donorId",label:"Donor"},{key:"channel",label:"Channel"},{key:"template",label:"Template"},{key:"outcome",label:"Outcome"},{key:"date",label:"Date"},{key:"message",label:"Message"}];
+    exportToCSV(outreachLog,`outreach_${new Date().toISOString().slice(0,10)}.csv`,cols);
+    addToast({type:"success",title:"Export Complete",message:`${outreachLog.length} outreach entries exported`});
+  };
+
+  const exportFullReport=()=>{
+    // Comprehensive JSON export with all data
+    const report={
+      meta:{exported:new Date().toISOString(),org:getActiveOrg().name,version:"2.0"},
+      donors,activities:acts,deals,campaigns,reminders,outreachLog,
+      summary:{
+        totalDonors:donors.length,
+        tier1:donors.filter(d=>d.tier==="Tier 1").length,
+        totalPipeline:donors.reduce((s,d)=>s+(parseInt(d.annual_giving||0)||aiAsk(d)),0),
+        totalDeals:deals.length,
+        totalActivities:acts.length
+      }
+    };
+    const blob=new Blob([JSON.stringify(report,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=`crm_full_report_${new Date().toISOString().slice(0,10)}.json`;a.click();
+    URL.revokeObjectURL(url);
+    addToast({type:"success",title:"Full Report Exported",message:"All CRM data exported as JSON"});
+  };
+
+  return(<div className="content-scroll">
+    <h2 style={{fontSize:18,fontWeight:700,marginBottom:4}}>📥 Export & Reports</h2>
+    <p style={{fontSize:12,color:"var(--text3)",marginBottom:20}}>Download your data in CSV or JSON format for reports, backups, or importing into other tools.</p>
+
+    <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>Donor Exports</div>
+    <div className="export-grid" style={{marginBottom:20}}>
+      <div className="export-card" onClick={()=>exportDonors("all")}>
+        <div className="ex-icon">👥</div><div className="ex-title">All Donors</div><div className="ex-desc">{donors.length} donors to CSV</div></div>
+      <div className="export-card" onClick={()=>exportDonors("tier1")}>
+        <div className="ex-icon">⭐</div><div className="ex-title">Tier 1 Only</div><div className="ex-desc">{donors.filter(d=>d.tier==="Tier 1").length} HNW donors</div></div>
+      <div className="export-card" onClick={()=>exportDonors("active")}>
+        <div className="ex-icon">🔥</div><div className="ex-title">Active Pipeline</div><div className="ex-desc">Donors in active outreach</div></div>
+    </div>
+
+    <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>Other Exports</div>
+    <div className="export-grid" style={{marginBottom:20}}>
+      <div className="export-card" onClick={exportActivities}>
+        <div className="ex-icon">📋</div><div className="ex-title">Activities</div><div className="ex-desc">{acts.length} activities to CSV</div></div>
+      <div className="export-card" onClick={exportDeals}>
+        <div className="ex-icon">💎</div><div className="ex-title">Deals</div><div className="ex-desc">{deals.length} deals to CSV</div></div>
+      <div className="export-card" onClick={exportOutreach}>
+        <div className="ex-icon">🧠</div><div className="ex-title">Outreach Log</div><div className="ex-desc">{outreachLog.length} entries to CSV</div></div>
+    </div>
+
+    <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:.5,marginBottom:10}}>Full Backup</div>
+    <div className="export-grid">
+      <div className="export-card" onClick={exportFullReport} style={{gridColumn:"1/-1",background:"linear-gradient(135deg,var(--surface),rgba(139,92,246,0.05))"}}>
+        <div className="ex-icon">🗄️</div><div className="ex-title">Complete CRM Backup (JSON)</div><div className="ex-desc">All donors, activities, deals, campaigns, reminders, outreach — everything in one file</div></div>
+    </div>
+  </div>);
+}
+
+// ============================================================
+// FOLLOW-UP AUTOMATION ENGINE — rules-based auto-reminders
+// ============================================================
+function FollowUpRules({rules,onToggleRule,onRunRules,autoCount}){
+  return(<div className="content-scroll">
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+      <div>
+        <h2 style={{fontSize:18,fontWeight:700}}>⚙️ Follow-up Automation</h2>
+        <p style={{fontSize:12,color:"var(--text3)"}}>Rules that automatically create reminders based on donor activity</p>
+      </div>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        {autoCount>0&&<span style={{fontSize:11,color:"var(--green)",fontWeight:600}}>✓ {autoCount} auto-reminders created</span>}
+        <button className="btn btn-primary btn-sm" onClick={onRunRules}>▶ Run Rules Now</button>
+      </div>
+    </div>
+    {rules.map(r=>(
+      <div className="rule-card" key={r.id}>
+        <div className="rule-icon">{r.icon}</div>
+        <div className="rule-body">
+          <div className="rule-name">{r.name}</div>
+          <div className="rule-desc">{r.desc}</div>
+        </div>
+        <div className={"rule-toggle"+(r.enabled?" on":"")} onClick={()=>onToggleRule(r.id)}/>
+      </div>
+    ))}
+    <div style={{marginTop:20,padding:16,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-lg)"}}>
+      <h4 style={{fontSize:13,fontWeight:700,marginBottom:8}}>How It Works</h4>
+      <div style={{fontSize:12,color:"var(--text2)",lineHeight:1.7}}>
+        <div>1. Enable the rules you want active</div>
+        <div>2. Rules run automatically when you log activities</div>
+        <div>3. Click "Run Rules Now" to scan all donors and create reminders</div>
+        <div>4. Check Reminders tab (🔔) for generated follow-ups</div>
+        <div style={{marginTop:8,color:"var(--text3)",fontSize:11}}>Rules never create duplicate reminders for the same donor + trigger combination.</div>
+      </div>
+    </div>
+  </div>);
+}
+
+// ============================================================
+// ORG ADMIN PANEL — user management, org settings, white-label
+// ============================================================
+function OrgAdminPanel({session,donors,acts,deals}){
+  const[users,setUsersState]=useState(()=>getUsers());
+  const[orgConfig,setOrgConfig]=useState(()=>getActiveOrg());
+  const[showAddUser,setShowAddUser]=useState(false);
+  const[newUser,setNewUser]=useState({name:"",email:"",role:"fundraiser",password:""});
+  const{addToast}=useToast();
+
+  const isAdmin=session?.role==="admin";
+
+  const addUser=()=>{
+    if(!newUser.name||!newUser.email||!newUser.password){return}
+    if(users.find(u=>u.email.toLowerCase()===newUser.email.toLowerCase())){addToast({type:"error",title:"Email taken"});return}
+    const u={id:Date.now(),name:newUser.name,email:newUser.email.toLowerCase(),role:newUser.role,passwordHash:hashPassword(newUser.password),created:new Date().toISOString(),avatar:initials(newUser.name)};
+    const updated=[...users,u];
+    setUsersState(updated);setUsers(updated);
+    setNewUser({name:"",email:"",role:"fundraiser",password:""});setShowAddUser(false);
+    addToast({type:"success",title:"User Added",message:`${u.name} (${u.role}) added`});
+  };
+
+  const removeUser=(id)=>{
+    if(!confirm("Remove this user?"))return;
+    const updated=users.filter(u=>u.id!==id);
+    setUsersState(updated);setUsers(updated);
+    addToast({type:"warning",title:"User Removed"});
+  };
+
+  const updateOrg=(updates)=>{
+    const updated={...orgConfig,...updates};
+    setOrgConfig(updated);setActiveOrg(updated);
+    // Update in org list too
+    const list=getOrgList();
+    const idx=list.findIndex(o=>o.id===updated.id);
+    if(idx>=0){list[idx]=updated;setOrgList(list)}
+  };
+
+  return(<div className="content-scroll">
+    <h2 style={{fontSize:18,fontWeight:700,marginBottom:16}}>🏢 Organization Admin</h2>
+
+    <div className="admin-grid">
+      {/* Org Settings */}
+      <div className="admin-card">
+        <h4>⚙️ Organization Settings</h4>
+        <div className="form-group"><label className="form-label">Organization Name</label>
+          <input className="form-input" value={orgConfig.name||""} onChange={e=>updateOrg({name:e.target.value})} disabled={!isAdmin}/></div>
+        <div className="form-group"><label className="form-label">Tagline</label>
+          <input className="form-input" value={orgConfig.tagline||""} onChange={e=>updateOrg({tagline:e.target.value})} disabled={!isAdmin}/></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          <div className="form-group"><label className="form-label">Logo Initials</label>
+            <input className="form-input" value={orgConfig.logo||""} onChange={e=>updateOrg({logo:e.target.value.slice(0,2)})} maxLength={2} disabled={!isAdmin} style={{textAlign:"center",fontWeight:800}}/></div>
+          <div className="form-group"><label className="form-label">Accent Color</label>
+            <input className="form-input" type="color" value={orgConfig.accentColor||"#f59e0b"} onChange={e=>updateOrg({accentColor:e.target.value})} disabled={!isAdmin} style={{height:38,padding:2,cursor:"pointer"}}/></div>
+        </div>
+        <div className="form-group"><label className="form-label">Currency</label>
+          <select className="form-select" value={orgConfig.currency||"USD"} onChange={e=>updateOrg({currency:e.target.value})} disabled={!isAdmin}>
+            <option value="USD">USD ($)</option><option value="ILS">ILS (₪)</option><option value="EUR">EUR (€)</option><option value="GBP">GBP (£)</option>
+          </select></div>
+      </div>
+
+      {/* Org Stats */}
+      <div className="admin-card">
+        <h4>📊 Organization Stats</h4>
+        <div style={{display:"grid",gap:8}}>
+          {[
+            {l:"Total Donors",v:donors.length,c:"var(--accent)"},
+            {l:"Activities Logged",v:acts.length,c:"var(--blue)"},
+            {l:"Active Deals",v:deals.length,c:"var(--green)"},
+            {l:"Team Members",v:users.length,c:"var(--purple)"},
+            {l:"Created",v:fmtD(orgConfig.created),c:"var(--text3)"},
+            {l:"Org ID",v:orgConfig.id,c:"var(--text3)"},
+          ].map(s=>(
+            <div key={s.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid var(--border)"}}>
+              <span style={{fontSize:12,color:"var(--text3)"}}>{s.l}</span>
+              <span style={{fontSize:13,fontWeight:700,color:s.c}}>{s.v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+
+    {/* User Management */}
+    <div className="admin-card" style={{marginBottom:16}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+        <h4 style={{margin:0}}>👥 Team Members</h4>
+        {isAdmin&&<button className="btn btn-primary btn-sm" onClick={()=>setShowAddUser(!showAddUser)}>+ Add User</button>}
+      </div>
+
+      {showAddUser&&<div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:12,marginBottom:12}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+          <div className="form-group" style={{margin:0}}><label className="form-label">Name</label>
+            <input className="form-input" value={newUser.name} onChange={e=>setNewUser(u=>({...u,name:e.target.value}))} placeholder="Full Name"/></div>
+          <div className="form-group" style={{margin:0}}><label className="form-label">Email</label>
+            <input className="form-input" value={newUser.email} onChange={e=>setNewUser(u=>({...u,email:e.target.value}))} placeholder="email@org.com"/></div>
+          <div className="form-group" style={{margin:0}}><label className="form-label">Password</label>
+            <input className="form-input" type="password" value={newUser.password} onChange={e=>setNewUser(u=>({...u,password:e.target.value}))} placeholder="Min 6 chars"/></div>
+          <div className="form-group" style={{margin:0}}><label className="form-label">Role</label>
+            <select className="form-select" value={newUser.role} onChange={e=>setNewUser(u=>({...u,role:e.target.value}))}>
+              {ROLES.map(r=><option key={r.id} value={r.id}>{r.label}</option>)}
+            </select></div>
+        </div>
+        <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <button className="btn btn-ghost btn-sm" onClick={()=>setShowAddUser(false)}>Cancel</button>
+          <button className="btn btn-primary btn-sm" onClick={addUser}>Add User</button>
+        </div>
+      </div>}
+
+      {users.map(u=>{
+        const role=ROLES.find(r=>r.id===u.role);
+        return(<div className="user-row" key={u.id}>
+          <div className="ur-avatar" style={{background:u.role==="admin"?"var(--accent-soft)":"var(--surface3)",color:u.role==="admin"?"var(--accent)":"var(--text2)"}}>{u.avatar||initials(u.name)}</div>
+          <div className="ur-info">
+            <div className="ur-name">{u.name} {u.id===session?.id&&<span style={{fontSize:10,color:"var(--accent)",fontWeight:600}}>(You)</span>}</div>
+            <div className="ur-email">{u.email}</div>
+          </div>
+          <span className="ur-role" style={{
+            background:u.role==="admin"?"var(--accent-soft)":u.role==="manager"?"var(--blue-soft)":u.role==="fundraiser"?"var(--green-soft)":"var(--surface2)",
+            color:u.role==="admin"?"var(--accent)":u.role==="manager"?"var(--blue)":u.role==="fundraiser"?"var(--green)":"var(--text3)"
+          }}>{role?.icon} {role?.label}</span>
+          {isAdmin&&u.id!==session?.id&&<button className="btn btn-ghost btn-sm" onClick={()=>removeUser(u.id)} style={{color:"var(--red)",fontSize:11}}>✕</button>}
+        </div>);
+      })}
+      {users.length===0&&<div style={{padding:16,textAlign:"center",color:"var(--text3)",fontSize:12}}>No users yet. Create an account to get started.</div>}
+    </div>
+
+    {/* Danger Zone */}
+    {isAdmin&&<div className="admin-card" style={{borderColor:"rgba(239,68,68,0.3)"}}>
+      <h4 style={{color:"var(--red)"}}>⚠️ Danger Zone</h4>
+      <p style={{fontSize:12,color:"var(--text3)",marginBottom:12}}>These actions cannot be undone.</p>
+      <div style={{display:"flex",gap:8}}>
+        <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"rgba(239,68,68,0.3)"}} onClick={()=>{
+          if(!confirm("Clear ALL donor data? This cannot be undone."))return;
+          localStorage.removeItem(orgPrefix()+"donors");
+          window.location.reload();
+        }}>🗑️ Clear Donor Data</button>
+        <button className="btn btn-ghost btn-sm" style={{color:"var(--red)",borderColor:"rgba(239,68,68,0.3)"}} onClick={()=>{
+          if(!confirm("Reset entire CRM? All data will be lost."))return;
+          const keys=Object.keys(localStorage).filter(k=>k.startsWith(orgPrefix()));
+          keys.forEach(k=>localStorage.removeItem(k));
+          window.location.reload();
+        }}>💣 Factory Reset</button>
+      </div>
+    </div>}
+  </div>);
+}
+
+// ============================================================
+// AUDIT LOG — compliance tracking for all CRM actions
+// ============================================================
+const AUDIT_TYPES={
+  donor_add:{icon:"➕",color:"var(--green-soft)",iconColor:"var(--green)"},
+  donor_edit:{icon:"✏️",color:"var(--blue-soft)",iconColor:"var(--blue)"},
+  donor_delete:{icon:"🗑️",color:"var(--red-soft)",iconColor:"var(--red)"},
+  stage_change:{icon:"📈",color:"var(--accent-soft)",iconColor:"var(--accent)"},
+  email_sent:{icon:"✉️",color:"var(--blue-soft)",iconColor:"var(--blue)"},
+  note_added:{icon:"📝",color:"var(--purple-soft)",iconColor:"var(--purple)"},
+  activity_logged:{icon:"📋",color:"var(--cyan-soft)",iconColor:"var(--cyan)"},
+  deal_created:{icon:"💎",color:"var(--green-soft)",iconColor:"var(--green)"},
+  export:{icon:"📥",color:"var(--surface2)",iconColor:"var(--text3)"},
+  login:{icon:"🔑",color:"var(--accent-soft)",iconColor:"var(--accent)"},
+  settings:{icon:"⚙️",color:"var(--surface2)",iconColor:"var(--text3)"},
+  import:{icon:"📤",color:"var(--purple-soft)",iconColor:"var(--purple)"},
+  campaign:{icon:"🎯",color:"var(--accent-soft)",iconColor:"var(--accent)"},
+  merge:{icon:"🔗",color:"var(--cyan-soft)",iconColor:"var(--cyan)"},
+  tag:{icon:"🏷️",color:"var(--purple-soft)",iconColor:"var(--purple)"},
+};
+
+function AuditLogView(){
+  const[log,setLog]=useState(()=>getAuditLog());
+  const[filter,setFilter]=useState("all");
+  const[q,setQ]=useState("");
+
+  // Refresh every 5 seconds
+  useEffect(()=>{const iv=setInterval(()=>setLog(getAuditLog()),5000);return()=>clearInterval(iv)},[]);
+
+  const filtered=useMemo(()=>{
+    let items=[...log].reverse();
+    if(filter!=="all")items=items.filter(e=>e.type===filter);
+    if(q){const ql=q.toLowerCase();items=items.filter(e=>(e.action||"").toLowerCase().includes(ql)||(e.detail||"").toLowerCase().includes(ql)||(e.user||"").toLowerCase().includes(ql));}
+    return items;
+  },[log,filter,q]);
+
+  const types=[...new Set(log.map(e=>e.type))].sort();
+
+  return(<div className="content-scroll">
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+      <h2 style={{fontSize:18,fontWeight:700}}>📜 Audit Log</h2>
+      <span style={{fontSize:11,color:"var(--text3)"}}>{log.length} total entries</span>
+    </div>
+    <p style={{fontSize:12,color:"var(--text3)",marginBottom:12}}>Complete record of all CRM actions for compliance and accountability</p>
+
+    <div className="audit-filter-bar">
+      <input className="form-input" placeholder="Search actions..." value={q} onChange={e=>setQ(e.target.value)} style={{maxWidth:200,padding:"6px 10px"}}/>
+      <select className="form-select" value={filter} onChange={e=>setFilter(e.target.value)} style={{width:160,padding:"6px 10px"}}>
+        <option value="all">All Actions</option>
+        {types.map(t=><option key={t} value={t}>{t.replace(/_/g," ")}</option>)}
+      </select>
+      <div style={{flex:1}}/>
+      <span style={{fontSize:11,color:"var(--text3)"}}>{filtered.length} shown</span>
+    </div>
+
+    {filtered.length===0&&<div className="empty-state"><div className="empty-icon">📜</div><h3>No audit entries</h3><p>Actions will be logged as you use the CRM</p></div>}
+    {filtered.slice(0,100).map(e=>{
+      const at=AUDIT_TYPES[e.type]||{icon:"📌",color:"var(--surface2)",iconColor:"var(--text3)"};
+      return(<div className="audit-row" key={e.id}>
+        <div className="au-icon" style={{background:at.color,color:at.iconColor}}>{at.icon}</div>
+        <div className="au-body">
+          <div className="au-action">{e.action}</div>
+          <div className="au-detail">{e.detail||""} {e.user&&<span style={{color:"var(--accent)"}}>— {e.user}</span>}</div>
+        </div>
+        <div className="au-time">{fmtD(e.ts)}<br/><span style={{fontSize:9}}>{new Date(e.ts).toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})}</span></div>
+      </div>);
+    })}
+    {filtered.length>100&&<div style={{padding:12,textAlign:"center",fontSize:11,color:"var(--text3)"}}>Showing first 100 of {filtered.length} entries</div>}
+  </div>);
+}
+
+// ============================================================
+// DUPLICATE DETECTION — find and merge duplicate donors
+// ============================================================
+function DuplicateDetector({donors,onMerge}){
+  const[dupes,setDupes]=useState([]);
+  const[scanning,setScanning]=useState(false);
+  const[merged,setMerged]=useState(0);
+
+  const scan=()=>{
+    setScanning(true);
+    const found=[];
+    const checked=new Set();
+    for(let i=0;i<donors.length;i++){
+      for(let j=i+1;j<donors.length;j++){
+        const a=donors[i],b=donors[j];
+        const key=`${i}_${j}`;
+        if(checked.has(key))continue;
+        checked.add(key);
+        let score=0;const reasons=[];
+        // Email match
+        if(a.email&&b.email&&a.email.toLowerCase()===b.email.toLowerCase()){score+=50;reasons.push("Same email")}
+        // Phone match
+        if(a.phone&&b.phone){const pa=a.phone.replace(/\D/g,"").slice(-10),pb=b.phone.replace(/\D/g,"").slice(-10);if(pa.length>=7&&pa===pb){score+=40;reasons.push("Same phone")}}
+        // Name similarity
+        const na=(a.name||"").toLowerCase().trim(),nb=(b.name||"").toLowerCase().trim();
+        if(na&&nb){
+          if(na===nb){score+=45;reasons.push("Exact name")}
+          else{
+            const pa=na.split(" "),pb=nb.split(" ");
+            if(pa.length>=2&&pb.length>=2&&pa[pa.length-1]===pb[pb.length-1]&&pa[0][0]===pb[0][0]){score+=25;reasons.push("Same last name + initial")}
+          }
+        }
+        // Same community + city
+        if(a.community&&b.community&&a.community.toLowerCase()===b.community.toLowerCase()&&a.city&&b.city&&a.city.toLowerCase()===b.city.toLowerCase()){score+=10;reasons.push("Same community+city")}
+        if(score>=25)found.push({a,b,score,reasons,id:`${a.id||a.name}_${b.id||b.name}`});
+      }
+    }
+    found.sort((x,y)=>y.score-x.score);
+    setDupes(found);
+    setScanning(false);
+  };
+
+  useEffect(()=>{if(donors.length>0)scan()},[donors.length]);
+
+  const merge=(pair,keep)=>{
+    const discard=keep===pair.a?pair.b:pair.a;
+    // Merge fields from discard into keep (only fill blanks)
+    const merged={...keep};
+    Object.keys(discard).forEach(k=>{
+      if(k==="id"||k==="name")return;
+      if(!merged[k]&&discard[k])merged[k]=discard[k];
+      if(Array.isArray(merged[k])&&Array.isArray(discard[k])){
+        merged[k]=[...new Set([...merged[k],...discard[k]])];
+      }
+    });
+    onMerge(merged,discard);
+    setDupes(p=>p.filter(d=>d.id!==pair.id));
+    setMerged(m=>m+1);
+    appendAudit({type:"merge",action:"Merged duplicate donors",detail:`Kept ${keep.name}, removed ${discard.name}`,user:getSession()?.name});
+  };
+
+  return(<div className="content-scroll">
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+      <div><h2 style={{fontSize:18,fontWeight:700}}>🔍 Duplicate Detection</h2>
+        <p style={{fontSize:12,color:"var(--text3)"}}>Find and merge duplicate donor records</p></div>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        {merged>0&&<span style={{fontSize:11,color:"var(--green)",fontWeight:600}}>✓ {merged} merged</span>}
+        <button className="btn btn-primary btn-sm" onClick={scan} disabled={scanning}>{scanning?"Scanning...":"🔍 Rescan"}</button>
+      </div>
+    </div>
+
+    {dupes.length===0&&!scanning&&<div className="empty-state"><div className="empty-icon">✨</div><h3>No duplicates found</h3><p>Your donor database is clean</p></div>}
+
+    {dupes.map(pair=>(
+      <div className="dup-card" key={pair.id}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+          <div style={{display:"flex",gap:4}}>
+            {pair.reasons.map((r,i)=><span key={i} className="dup-badge" style={{background:"var(--accent-soft)",color:"var(--accent)"}}>{r}</span>)}
+          </div>
+          <span style={{fontSize:11,fontWeight:700,color:pair.score>=50?"var(--red)":pair.score>=30?"var(--accent)":"var(--text3)"}}>{pair.score}% match</span>
+        </div>
+        <div className="dup-pair">
+          <div className="dup-donor">
+            <div className="dd-name">{pair.a.name}</div>
+            <div className="dd-meta">{pair.a.email||"—"} • {pair.a.phone||"—"} • {pair.a.community||"—"}</div>
+            <button className="btn btn-ghost btn-sm" style={{marginTop:6}} onClick={()=>merge(pair,pair.a)}>Keep This →</button>
+          </div>
+          <div style={{fontSize:18,color:"var(--text4)"}}>⟷</div>
+          <div className="dup-donor">
+            <div className="dd-name">{pair.b.name}</div>
+            <div className="dd-meta">{pair.b.email||"—"} • {pair.b.phone||"—"} • {pair.b.community||"—"}</div>
+            <button className="btn btn-ghost btn-sm" style={{marginTop:6}} onClick={()=>merge(pair,pair.b)}>← Keep This</button>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>);
+}
+
+// ============================================================
+// DONOR PRIORITY LEADERBOARD — AI-ranked engagement scores
+// ============================================================
+function PriorityLeaderboard({donors,acts,onSelect}){
+  const[sortMode,setSortMode]=useState("engagement"); // engagement | warmth | ask | likelihood
+  const[tierFilter,setTierFilter]=useState("all");
+
+  const ranked=useMemo(()=>{
+    let list=donors.map(d=>{
+      const eng=aiScore(d,acts);const lk=aiLikelihood(eng,d);const ask=aiAsk(d);
+      const stg=STAGES.find(s=>s.id===(d.pipeline_stage||"not_started"));
+      const lastAct=acts.filter(a=>a.did===(d.id||d.name)).sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+      const daysSince=lastAct?Math.round((Date.now()-new Date(lastAct.date))/864e5):999;
+      return{...d,eng,lk,ask,stg,daysSince};
+    });
+    if(tierFilter!=="all")list=list.filter(d=>d.tier===tierFilter);
+    if(sortMode==="engagement")list.sort((a,b)=>b.eng-a.eng);
+    if(sortMode==="warmth")list.sort((a,b)=>(parseInt(b.warmth_score||0))-(parseInt(a.warmth_score||0)));
+    if(sortMode==="ask")list.sort((a,b)=>b.ask-a.ask);
+    if(sortMode==="likelihood")list.sort((a,b)=>{const order={["Very High"]:4,High:3,Medium:2,Low:1};return(order[b.lk.l]||0)-(order[a.lk.l]||0)});
+    return list;
+  },[donors,acts,sortMode,tierFilter]);
+
+  return(<div className="content-scroll">
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+      <h2 style={{fontSize:18,fontWeight:700}}>🏆 Priority Leaderboard</h2>
+      <div style={{display:"flex",gap:8}}>
+        <select className="form-select" value={tierFilter} onChange={e=>setTierFilter(e.target.value)} style={{width:100,padding:"4px 8px",fontSize:11}}>
+          <option value="all">All Tiers</option><option value="Tier 1">Tier 1</option><option value="Tier 2">Tier 2</option><option value="Tier 3">Tier 3</option>
+        </select>
+        <select className="form-select" value={sortMode} onChange={e=>setSortMode(e.target.value)} style={{width:130,padding:"4px 8px",fontSize:11}}>
+          <option value="engagement">By Engagement</option><option value="warmth">By Warmth</option><option value="ask">By Ask Amount</option><option value="likelihood">By Likelihood</option>
+        </select>
+      </div>
+    </div>
+
+    {ranked.map((d,i)=>{
+      const rankCls=i===0?"gold":i===1?"silver":i===2?"bronze":"normal";
+      return(<div className="lb-row" key={d.id||d.name} onClick={()=>onSelect(d)}>
+        <div className={"lb-rank "+rankCls}>{i+1}</div>
+        <div className="avatar" style={{background:d.tier==="Tier 1"?"var(--accent-soft)":"var(--surface3)",color:d.tier==="Tier 1"?"var(--accent)":"var(--text3)",width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:700,fontSize:11,flexShrink:0}}>{initials(d.name)}</div>
+        <div className="lb-info">
+          <div className="lb-name">{d.name} <span className={"cell-tier "+(TIERS[d.tier]?.cls||"t3")} style={{fontSize:10,padding:"1px 5px"}}>{TIERS[d.tier]?.label||"T3"}</span></div>
+          <div className="lb-sub">{d.community||d.industry||"—"} • {d.stg?.label} • {d.daysSince<999?d.daysSince+"d ago":"No activity"}</div>
+        </div>
+        <div style={{display:"flex",gap:12,alignItems:"center"}}>
+          <div style={{textAlign:"center"}}><div style={{fontSize:14,fontWeight:800,color:d.lk.c}}>{d.lk.l}</div><div style={{fontSize:9,color:"var(--text4)"}}>LIKELIHOOD</div></div>
+          <div style={{textAlign:"center"}}><div style={{fontSize:14,fontWeight:800,color:"var(--green)"}}>{fmt$(d.ask)}</div><div style={{fontSize:9,color:"var(--text4)"}}>ASK</div></div>
+        </div>
+        <div className="lb-score">
+          <div className="lb-score-val" style={{color:d.eng>=70?"var(--green)":d.eng>=40?"var(--accent)":"var(--blue)"}}>{d.eng}</div>
+          <div className="lb-score-lbl">Score</div>
+        </div>
+      </div>);
+    })}
+  </div>);
+}
+
+// ============================================================
+// TAGGING SYSTEM — flexible tags for donor segmentation
+// ============================================================
+const tagColor=(tag)=>TAG_COLORS[Math.abs([...tag].reduce((h,c)=>((h<<5)-h)+c.charCodeAt(0),0))%TAG_COLORS.length];
+
+function TagManager({donors,onUpdateDonor}){
+  const[newTag,setNewTag]=useState("");
+  const[selTag,setSelTag]=useState(null);
+  const[addingTo,setAddingTo]=useState(null);
+  const[tagInput,setTagInput]=useState("");
+
+  // Collect all unique tags across donors
+  const allTags=useMemo(()=>{
+    const map=new Map();
+    donors.forEach(d=>{
+      (d.tags||[]).forEach(t=>{
+        if(!map.has(t))map.set(t,{name:t,count:0,donors:[]});
+        map.get(t).count++;
+        map.get(t).donors.push(d);
+      });
+    });
+    return[...map.values()].sort((a,b)=>b.count-a.count);
+  },[donors]);
+
+  const addTagToDonor=(donor,tag)=>{
+    const tags=[...new Set([...(donor.tags||[]),tag.trim()])];
+    onUpdateDonor({...donor,tags});
+    appendAudit({type:"tag",action:`Tagged ${donor.name}`,detail:`Added "${tag}"`,user:getSession()?.name});
+  };
+
+  const removeTagFromDonor=(donor,tag)=>{
+    const tags=(donor.tags||[]).filter(t=>t!==tag);
+    onUpdateDonor({...donor,tags});
+  };
+
+  const filteredDonors=selTag?allTags.find(t=>t.name===selTag)?.donors||[]:[];
+
+  return(<div className="content-scroll">
+    <h2 style={{fontSize:18,fontWeight:700,marginBottom:4}}>🏷️ Tags & Segmentation</h2>
+    <p style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>Organize donors with custom tags for targeted outreach</p>
+
+    {/* Tag Cloud */}
+    <div style={{marginBottom:16}}>
+      <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>All Tags ({allTags.length})</div>
+      <div className="tag-cloud">
+        {allTags.map(t=>(
+          <div key={t.name} className="tag" style={{background:tagColor(t.name)+"20",color:tagColor(t.name),cursor:"pointer",border:"2px solid "+(selTag===t.name?tagColor(t.name):"transparent")}} onClick={()=>setSelTag(selTag===t.name?null:t.name)}>
+            {t.name} <span style={{opacity:.6}}>({t.count})</span>
+          </div>
+        ))}
+        {allTags.length===0&&<span style={{fontSize:12,color:"var(--text3)"}}>No tags yet. Add tags to donors from the list below.</span>}
+      </div>
+    </div>
+
+    {/* Filtered donors by tag */}
+    {selTag&&<div style={{marginBottom:16}}>
+      <div style={{fontSize:13,fontWeight:700,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+        <span className="tag" style={{background:tagColor(selTag)+"20",color:tagColor(selTag)}}>{selTag}</span>
+        <span style={{color:"var(--text3)"}}>— {filteredDonors.length} donors</span>
+        <button className="btn btn-ghost btn-sm" style={{marginLeft:"auto"}} onClick={()=>setSelTag(null)}>Clear Filter</button>
+      </div>
+      {filteredDonors.map(d=>(
+        <div key={d.id||d.name} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 10px",borderBottom:"1px solid var(--border)"}}>
+          <span style={{fontSize:13,fontWeight:600,flex:1}}>{d.name}</span>
+          <span className={"cell-tier "+(TIERS[d.tier]?.cls||"t3")} style={{fontSize:10}}>{TIERS[d.tier]?.label||"T3"}</span>
+          <span style={{fontSize:11,color:"var(--text3)"}}>{d.community||"—"}</span>
+        </div>
+      ))}
+    </div>}
+
+    {/* All donors with tag management */}
+    <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>Donor Tags</div>
+    {donors.map(d=>(
+      <div key={d.id||d.name} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderBottom:"1px solid var(--border)"}}>
+        <span style={{fontSize:13,fontWeight:600,minWidth:160}}>{d.name}</span>
+        <div className="tag-bar" style={{flex:1}}>
+          {(d.tags||[]).map(t=>(
+            <span key={t} className="tag" style={{background:tagColor(t)+"20",color:tagColor(t)}}>
+              {t}<span className="tag-x" onClick={()=>removeTagFromDonor(d,t)}>✕</span>
+            </span>
+          ))}
+          {addingTo===(d.id||d.name)?
+            <input className="form-input" autoFocus style={{width:100,padding:"2px 6px",fontSize:10,display:"inline"}} value={tagInput} onChange={e=>setTagInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&tagInput.trim()){addTagToDonor(d,tagInput);setTagInput("");setAddingTo(null)}if(e.key==="Escape")setAddingTo(null)}} onBlur={()=>{if(tagInput.trim())addTagToDonor(d,tagInput);setTagInput("");setAddingTo(null)}}/>:
+            <span className="tag-input" onClick={()=>{setAddingTo(d.id||d.name);setTagInput("")}}>+ tag</span>
+          }
+        </div>
+      </div>
+    ))}
+  </div>);
+}
+
+// ============================================================
+// BATCH EMAIL — compose + send to multiple donors at once
+// ============================================================
+function BatchEmailComposer({donors,apiKey,onSend,onClose}){
+  const[selected,setSelected]=useState([]);
+  const[tmpl,setTmpl]=useState("T-E");
+  const[subj,setSubj]=useState("");
+  const[body,setBody]=useState("");
+  const[loading,setLoading]=useState(false);
+  const[sent,setSent]=useState(0);
+  const[q,setQ]=useState("");
+
+  const available=useMemo(()=>{
+    let list=donors.filter(d=>d.email);
+    if(q){const ql=q.toLowerCase();list=list.filter(d=>(d.name||"").toLowerCase().includes(ql)||(d.community||"").toLowerCase().includes(ql)||(d.tier||"").toLowerCase().includes(ql));}
+    return list;
+  },[donors,q]);
+
+  const addRecipient=(d)=>{if(!selected.find(s=>(s.id||s.name)===(d.id||d.name)))setSelected(p=>[...p,d])};
+  const removeRecipient=(d)=>{setSelected(p=>p.filter(s=>(s.id||s.name)!==(d.id||d.name)))};
+  const addAll=()=>setSelected(available);
+  const addTier=(tier)=>setSelected(p=>{const ids=new Set(p.map(d=>d.id||d.name));const add=available.filter(d=>d.tier===tier&&!ids.has(d.id||d.name));return[...p,...add]});
+
+  const generateAll=async()=>{
+    if(!apiKey){alert("Set API key in Settings first.");return}
+    setLoading(true);
+    const t=TEMPLATES.find(x=>x.id===tmpl);
+    // Generate a generic template
+    const bOrg=getActiveOrg();const bProfile=getOrgProfile();
+    const prompt=`You are a fundraising copywriter for ${bOrg.name}${bProfile.mission?" — "+bProfile.mission:""}. Write a compelling outreach email template.\nTemplate: ${t?.name} — ${t?.segment}\nHooks: ${t?.hooks}\n\nWrite the email body with merge fields: {name}, {community}, {city}. 150-200 words. Warm, personal, compelling. End with CTA for a meeting. Sign as "${bOrg.name} Development Team".`;
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1024,messages:[{role:"user",content:prompt}]})});
+      if(!res.ok)throw new Error(`API ${res.status}`);
+      const data=await res.json();
+      setBody(data.content?.[0]?.text||"");
+      setSubj((t?.subject||getActiveOrg().name+" — {name}").replace("{School}","").replace("{Synagogue}","").replace("{Family}",""));
+    }catch(e){alert("AI Error: "+e.message)}finally{setLoading(false)}
+  };
+
+  const sendAll=()=>{
+    selected.forEach(d=>{
+      const personalSubj=subj.replace(/\{name\}/gi,d.name?.split(" ")[0]||"").replace(/\{community\}/gi,d.community||"").replace(/\{city\}/gi,d.city||"");
+      const personalBody=body.replace(/\{name\}/gi,d.name?.split(" ")[0]||"").replace(/\{community\}/gi,d.community||"").replace(/\{city\}/gi,d.city||"");
+      onSend({did:d.id||d.name,tmpl,subj:personalSubj,body:personalBody,date:new Date().toISOString(),batch:true});
+    });
+    setSent(selected.length);
+    appendAudit({type:"email_sent",action:`Batch email sent to ${selected.length} donors`,detail:`Template: ${tmpl}`,user:getSession()?.name});
+  };
+
+  if(sent>0)return(<div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
+    <div className="modal-body" style={{textAlign:"center",padding:40}}>
+      <div style={{fontSize:48,marginBottom:12}}>✅</div>
+      <h3 style={{marginBottom:8}}>{sent} Emails Drafted</h3>
+      <p style={{fontSize:12,color:"var(--text3)"}}>All emails logged as activities. Check donor timelines for details.</p>
+      <button className="btn btn-primary" onClick={onClose} style={{marginTop:16}}>Done</button>
+    </div>
+  </div></div>);
+
+  return(<div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()} style={{width:840,maxHeight:"90vh"}}>
+    <div className="modal-header"><h3>📨 Batch Email Campaign</h3><div className="detail-close" onClick={onClose}>✕</div></div>
+    <div className="modal-body">
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+        {/* Left: recipient selection */}
+        <div>
+          <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>Recipients ({selected.length})</div>
+          <div style={{display:"flex",gap:4,marginBottom:8}}>
+            <button className="btn btn-ghost btn-sm" onClick={addAll}>All w/ Email</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>addTier("Tier 1")}>+ T1</button>
+            <button className="btn btn-ghost btn-sm" onClick={()=>addTier("Tier 2")}>+ T2</button>
+          </div>
+          <input className="form-input" placeholder="Search donors..." value={q} onChange={e=>setQ(e.target.value)} style={{marginBottom:8,padding:"6px 10px"}}/>
+          <div style={{maxHeight:160,overflowY:"auto",marginBottom:8}}>
+            {selected.map(d=>(
+              <div className="batch-recipient" key={d.id||d.name}>
+                <span className="br-name">{d.name}</span>
+                <span style={{fontSize:10,color:"var(--text3)"}}>{d.email}</span>
+                <span className="br-remove" onClick={()=>removeRecipient(d)}>✕</span>
+              </div>
+            ))}
+          </div>
+          <div style={{maxHeight:120,overflowY:"auto",borderTop:"1px solid var(--border)",paddingTop:8}}>
+            {available.filter(d=>!selected.find(s=>(s.id||s.name)===(d.id||d.name))).slice(0,20).map(d=>(
+              <div key={d.id||d.name} style={{display:"flex",alignItems:"center",gap:6,padding:"3px 0",fontSize:11,cursor:"pointer",color:"var(--text2)"}} onClick={()=>addRecipient(d)}>
+                <span style={{color:"var(--accent)"}}>+</span> {d.name} <span style={{color:"var(--text4)"}}>{d.email}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Right: compose */}
+        <div>
+          <div className="form-group"><label className="form-label">Template</label>
+            <select className="form-select" value={tmpl} onChange={e=>setTmpl(e.target.value)}>{TEMPLATES.map(t=><option key={t.id} value={t.id}>{t.id}: {t.name}</option>)}</select></div>
+          <button className="btn btn-primary btn-sm" onClick={generateAll} disabled={loading} style={{marginBottom:12}}>{loading?"⏳ Generating...":"⚡ Generate with AI"}</button>
+          <div className="form-group"><label className="form-label">Subject (use {"{name}"}, {"{community}"})</label>
+            <input className="form-input" value={subj} onChange={e=>setSubj(e.target.value)}/></div>
+          <div className="form-group"><label className="form-label">Body</label>
+            <textarea className="form-textarea" value={body} onChange={e=>setBody(e.target.value)} style={{minHeight:150}}/></div>
+        </div>
+      </div>
+    </div>
+    <div className="modal-footer">
+      <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+      <button className="btn btn-primary" onClick={sendAll} disabled={!selected.length||!subj||!body}>📨 Draft {selected.length} Email{selected.length!==1?"s":""}</button>
+    </div>
+  </div></div>);
+}
+
+// ============================================================
+// TEAM ACTIVITY DASHBOARD — per-user productivity tracking
+// ============================================================
+function TeamDashboard({acts,donors,users}){
+  const[period,setPeriod]=useState(30);
+
+  const cutoff=useMemo(()=>new Date(Date.now()-period*864e5).toISOString(),[period]);
+
+  const teamStats=useMemo(()=>{
+    const allUsers=users||getUsers();
+    return allUsers.map(u=>{
+      const userActs=acts.filter(a=>a.user===u.name||a.user===u.email);
+      const recentActs=userActs.filter(a=>a.date>=cutoff);
+      const emails=recentActs.filter(a=>a.type==="email").length;
+      const calls=recentActs.filter(a=>a.type==="call").length;
+      const meetings=recentActs.filter(a=>a.type==="meeting").length;
+      const stageChanges=recentActs.filter(a=>a.type==="stage_change").length;
+      const uniqueDonors=new Set(recentActs.map(a=>a.did)).size;
+      return{user:u,total:recentActs.length,emails,calls,meetings,stageChanges,uniqueDonors,allTime:userActs.length};
+    }).sort((a,b)=>b.total-a.total);
+  },[acts,cutoff,users]);
+
+  // Overall stats
+  const totalActs=acts.filter(a=>a.date>=cutoff).length;
+  const activeDonors=new Set(acts.filter(a=>a.date>=cutoff).map(a=>a.did)).size;
+
+  return(<div className="content-scroll">
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}>
+      <h2 style={{fontSize:18,fontWeight:700}}>👥 Team Activity</h2>
+      <select className="form-select" value={period} onChange={e=>setPeriod(parseInt(e.target.value))} style={{width:120,padding:"4px 8px",fontSize:11}}>
+        <option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option>
+      </select>
+    </div>
+
+    {/* Summary strip */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
+      <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:12,textAlign:"center"}}>
+        <div style={{fontSize:22,fontWeight:800}}>{totalActs}</div>
+        <div style={{fontSize:10,color:"var(--text3)",textTransform:"uppercase"}}>Total Activities</div>
+      </div>
+      <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:12,textAlign:"center"}}>
+        <div style={{fontSize:22,fontWeight:800,color:"var(--accent)"}}>{activeDonors}</div>
+        <div style={{fontSize:10,color:"var(--text3)",textTransform:"uppercase"}}>Donors Touched</div>
+      </div>
+      <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:12,textAlign:"center"}}>
+        <div style={{fontSize:22,fontWeight:800,color:"var(--green)"}}>{teamStats.length}</div>
+        <div style={{fontSize:10,color:"var(--text3)",textTransform:"uppercase"}}>Team Members</div>
+      </div>
+    </div>
+
+    {teamStats.length===0&&<div className="empty-state"><div className="empty-icon">👥</div><h3>No team activity yet</h3><p>Activities will be tracked per user as the team logs actions</p></div>}
+
+    {teamStats.map(ts=>{
+      const role=ROLES.find(r=>r.id===ts.user.role);
+      return(<div className="team-card" key={ts.user.id}>
+        <div className="tc-header">
+          <div className="tc-avatar" style={{background:ts.user.role==="admin"?"var(--accent-soft)":"var(--surface3)",color:ts.user.role==="admin"?"var(--accent)":"var(--text2)"}}>{ts.user.avatar||initials(ts.user.name)}</div>
+          <div style={{flex:1}}>
+            <div className="tc-name">{ts.user.name}</div>
+            <div className="tc-role">{role?.icon} {role?.label} • {ts.user.email}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:18,fontWeight:800}}>{ts.total}</div>
+            <div style={{fontSize:9,color:"var(--text3)"}}>actions ({period}d)</div>
+          </div>
+        </div>
+        <div className="team-stats">
+          <div className="team-stat"><div className="ts-val" style={{color:"var(--blue)"}}>{ts.emails}</div><div className="ts-lbl">Emails</div></div>
+          <div className="team-stat"><div className="ts-val" style={{color:"var(--green)"}}>{ts.calls}</div><div className="ts-lbl">Calls</div></div>
+          <div className="team-stat"><div className="ts-val" style={{color:"var(--accent)"}}>{ts.meetings}</div><div className="ts-lbl">Meetings</div></div>
+          <div className="team-stat"><div className="ts-val" style={{color:"var(--purple)"}}>{ts.uniqueDonors}</div><div className="ts-lbl">Donors</div></div>
+        </div>
+      </div>);
+    })}
+  </div>);
+}
+
+
+// ============================================================
 // COMPONENT: DataLoader
 // ============================================================
 // -- Generate demo data (org-generic — no hardcoded communities) --
