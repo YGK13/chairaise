@@ -394,6 +394,16 @@ function TimelineView({acts,donors}){
 function DonorDetail({donor:d,acts,notes,onClose,onNote,onStage,onCompose,onEdit,onLogActivity}){
   const[tab,setTab]=useState("overview");const[nt,setNt]=useState("");
   const[showLogger,setShowLogger]=useState(false);
+  const[donations,setDonations]=useState([]);const[donationsLoading,setDonationsLoading]=useState(false);
+  // Fetch donation history when donations tab is selected
+  useEffect(()=>{
+    if(tab==="donations"&&donations.length===0&&!donationsLoading){
+      setDonationsLoading(true);
+      donationsAPI.getByDonor(d.id||d.name).then(data=>{
+        if(data&&!data.error)setDonations(Array.isArray(data)?data:(data.donations||[]));
+      }).catch(()=>{}).finally(()=>setDonationsLoading(false));
+    }
+  },[tab]);
   if(!d)return null;
   const eng=aiScore(d,acts);const lk=aiLikelihood(eng,d);const ask=aiAsk(d);const bt=aiTemplate(d);const tmpl=TEMPLATES.find(t=>t.id===bt);
   const stg=STAGES.find(s=>s.id===(d.pipeline_stage||"not_started"));const w=parseInt(d.warmth_score||d.warmth||0);
@@ -406,7 +416,7 @@ function DonorDetail({donor:d,acts,notes,onClose,onNote,onStage,onCompose,onEdit
         <button className="btn btn-ghost btn-sm" onClick={()=>onEdit(d)} title="Edit donor">✏️</button>
         <button className="btn btn-ghost btn-sm" onClick={()=>setShowLogger(!showLogger)} title="Log activity">📋</button>
         <div className="detail-close" onClick={onClose}>✕</div></div>
-      <div className="detail-tabs">{["overview","intel","timeline","whatsapp","notes"].map(t=><div key={t} className={"detail-tab "+(tab===t?"active":"")} onClick={()=>setTab(t)}>{t==="whatsapp"?"💬 WhatsApp":t[0].toUpperCase()+t.slice(1)}</div>)}</div>
+      <div className="detail-tabs">{["overview","intel","donations","timeline","whatsapp","notes"].map(t=><div key={t} className={"detail-tab "+(tab===t?"active":"")} onClick={()=>setTab(t)}>{t==="whatsapp"?"💬 WhatsApp":t==="donations"?"💰 Gifts":t[0].toUpperCase()+t.slice(1)}</div>)}</div>
       <div className="detail-body">
         {showLogger&&<ActivityLogger donor={d} onLog={(act,rem)=>onLogActivity(act,rem)} onClose={()=>setShowLogger(false)}/>}
         {tab==="overview"&&<>
@@ -445,6 +455,34 @@ function DonorDetail({donor:d,acts,notes,onClose,onNote,onStage,onCompose,onEdit
           <div className="intel-card full"><div className="il">Prior Gift Detail</div><div className="iv">{d.prior_gift_detail||"No prior gift on record"}</div></div>
           <div className="intel-card full"><div className="il">Custom Hook</div><div className="iv">{d.custom_hook||"—"}</div></div>
           <div className="intel-card full"><div className="il">Notes from Data</div><div className="iv" style={{fontSize:12,lineHeight:1.6}}>{d.notes||d.additional_notes||"—"}</div></div>
+        </div>}
+        {tab==="donations"&&<div>
+          {donationsLoading&&<p style={{color:"var(--text3)",fontSize:12}}>Loading donation history...</p>}
+          {!donationsLoading&&donations.length===0&&<div style={{textAlign:"center",padding:"32px 0"}}>
+            <div style={{fontSize:32,marginBottom:8}}>💰</div>
+            <p style={{fontSize:13,color:"var(--text3)",marginBottom:4}}>No donation history yet</p>
+            <p style={{fontSize:11,color:"var(--text4)"}}>Donations will appear here when synced from fundraising platforms or logged manually.</p>
+          </div>}
+          {donations.length>0&&<>
+            {/* Summary stats */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:16}}>
+              <div className="intel-card"><div className="il">Lifetime Total</div><div className="iv" style={{color:"var(--green)"}}>{fmt$(donations.reduce((s,g)=>s+(parseFloat(g.amount)||0),0))}</div></div>
+              <div className="intel-card"><div className="il">Total Gifts</div><div className="iv">{donations.length}</div></div>
+              <div className="intel-card"><div className="il">Avg Gift</div><div className="iv">{fmt$(Math.round(donations.reduce((s,g)=>s+(parseFloat(g.amount)||0),0)/donations.length))}</div></div>
+            </div>
+            {/* Gift list */}
+            <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>Gift History</div>
+            {donations.sort((a,b)=>new Date(b.date||b.created_at)-new Date(a.date||a.created_at)).map((g,i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
+                <div style={{width:8,height:8,borderRadius:"50%",background:g.status==="completed"||!g.status?"var(--green)":g.status==="pending"?"var(--accent)":"var(--text4)",flexShrink:0}}/>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:600}}>{fmt$(g.amount)}{g.campaign_name?<span style={{fontSize:10,color:"var(--text3)",marginLeft:6}}>→ {g.campaign_name}</span>:""}</div>
+                  <div style={{fontSize:11,color:"var(--text3)"}}>{g.type||"one-time"}{g.platform?` via ${g.platform}`:""}</div>
+                </div>
+                <div style={{fontSize:11,color:"var(--text4)"}}>{fmtD(g.date||g.created_at)}</div>
+              </div>
+            ))}
+          </>}
         </div>}
         {tab==="timeline"&&<div className="timeline" style={{padding:0}}>
           {da.length===0&&<p style={{color:"var(--text3)",fontSize:12}}>No activities yet</p>}
