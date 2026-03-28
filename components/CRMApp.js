@@ -4919,26 +4919,26 @@ function AppInner(){
   if(!donors&&!showWizard)return <DataLoader onLoad={loadData}/>;
   if(!donors&&showWizard)return <OnboardingWizard onComplete={handleWizardComplete} onSkip={()=>{setShowWizard(false)}}/>;
 
-  return(<div className="app-shell">
+  return(<div className="app-shell" role="application" aria-label="ChaiRaise CRM">
     {/* NAV RAIL */}
-    <div className="nav-rail">
+    <nav className="nav-rail" role="navigation" aria-label="Main navigation">
       <div style={{position:"relative"}}>
         <div className="nav-logo" title={(getActiveOrg().name||"ChaiRaise")+" — Click to switch orgs"} onClick={()=>setShowOrgSwitcher(!showOrgSwitcher)}>{getActiveOrg().logo||"CR"}</div>
         {showOrgSwitcher&&<OrgSwitcher currentOrg={getActiveOrg()} onClose={()=>setShowOrgSwitcher(false)}/>}
       </div>
-      {NAV.map(n=><div key={n.id} className={"nav-item "+(page===n.id?"active":"")} onClick={()=>{setPage(n.id);if(n.id==="donors")setSub("list")}} title={n.label} style={{position:"relative"}}>
+      {NAV.map(n=><div key={n.id} className={"nav-item "+(page===n.id?"active":"")} onClick={()=>{setPage(n.id);if(n.id==="donors")setSub("list")}} title={n.label} role="button" tabIndex={0} aria-label={n.label} aria-current={page===n.id?"page":undefined} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setPage(n.id);if(n.id==="donors")setSub("list")}}} style={{position:"relative"}}>
         {n.icon}
         {n.id==="reminders"&&remindersDue>0&&<div style={{position:"absolute",top:2,right:2,width:14,height:14,borderRadius:7,background:"var(--red)",fontSize:9,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>{remindersDue}</div>}
       </div>)}
       <div className="nav-spacer"/>
       <NotificationBell reminders={reminders} donors={donors||[]} outreachLog={outreachLog} acts={acts}/>
-      <div className="nav-item" title={`${session.name} (${session.role})`} onClick={handleLogout} style={{fontSize:11,fontWeight:700,color:"var(--accent)"}}>
+      <div className="nav-item" title={`${session.name} (${session.role}) — Click to logout`} onClick={handleLogout} role="button" tabIndex={0} aria-label={`Logged in as ${session.name}. Click to logout.`} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();handleLogout()}}} style={{fontSize:11,fontWeight:700,color:"var(--accent)"}}>
         {session.avatar||initials(session.name)}
       </div>
-    </div>
+    </nav>
 
     {/* MAIN */}
-    <div className="main-area">
+    <main className="main-area" id="main-content" role="main">
       {/* TOP BAR — with working global search */}
       <div className="top-bar">
         <div className="page-title">{NAV.find(n=>n.id===page)?.icon} {NAV.find(n=>n.id===page)?.label}</div>
@@ -4998,7 +4998,7 @@ function AppInner(){
         {page==="admin"&&<OrgAdminPanel session={session} donors={donors} acts={acts} deals={deals}/>}
         {page==="settings"&&<Settings apiKey={apiKey} setKey={setKey} pplxKey={pplxKey} setPplxKey={setPplxKey} aiProvider={aiProvider} setAiProvider={setAiProvider} donors={donors} acts={acts} notes={notes} deals={deals} waBridge={waBridge} setWaBridge={setWaBridgeFn}/>}
       </div>
-    </div>
+    </main>
 
     {/* DETAIL PANEL — now with Edit and Activity Logger */}
     {selD&&<DonorDetail donor={selD} acts={acts} notes={notes} onClose={()=>setSelD(null)} onNote={addNote} onStage={chgStage} onCompose={d=>{setCompD(d)}} onEdit={d=>setDonorForm({donor:d})} onLogActivity={logActivity}/>}
