@@ -2849,11 +2849,35 @@ function AppInner(){
   useEffect(()=>{sSet("deals",deals)},[deals]);
   useEffect(()=>{sSet("reminders",reminders)},[reminders]);
 
-  // ---- Keyboard shortcut: Ctrl+K for Command Palette ----
+  // ---- Keyboard shortcuts — power user navigation ----
   useEffect(()=>{
     const handler=(e)=>{
-      if((e.ctrlKey||e.metaKey)&&e.key==="k"){e.preventDefault();setShowCmdK(v=>!v)}
-      if(e.key==="Escape")setShowCmdK(false);
+      // Don't trigger shortcuts when typing in inputs
+      const tag=e.target.tagName;
+      const isInput=tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"||e.target.isContentEditable;
+
+      // Ctrl+K / Cmd+K → Command Palette (always works)
+      if((e.ctrlKey||e.metaKey)&&e.key==="k"){e.preventDefault();setShowCmdK(v=>!v);return}
+      // Escape → close modals/panels
+      if(e.key==="Escape"){setShowCmdK(false);setShowBatchEmail(false);setShowAdvSearch(false);setShowCSVImport(false);setShowOrgSwitcher(false);return}
+
+      // Skip remaining shortcuts if typing in an input
+      if(isInput)return;
+
+      // G then D → Go to Dashboard (vim-style navigation)
+      // Single-key nav shortcuts (only when not in input)
+      if(e.key==="1"&&e.altKey){e.preventDefault();setPage("dashboard")}
+      if(e.key==="2"&&e.altKey){e.preventDefault();setPage("donors")}
+      if(e.key==="3"&&e.altKey){e.preventDefault();setPage("campaigns")}
+      if(e.key==="4"&&e.altKey){e.preventDefault();setPage("network")}
+      if(e.key==="5"&&e.altKey){e.preventDefault();setPage("outreach")}
+      // N → New donor
+      if(e.key==="n"&&!e.ctrlKey&&!e.metaKey){setShowAddDonor(true)}
+      // S → Advanced Search
+      if(e.key==="s"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();setShowAdvSearch(true)}
+      // B → Batch email
+      if(e.key==="b"&&!e.ctrlKey&&!e.metaKey){setShowBatchEmail(true)}
+      // ? → Show keyboard shortcut help (future)
     };
     window.addEventListener("keydown",handler);
     return()=>window.removeEventListener("keydown",handler);
