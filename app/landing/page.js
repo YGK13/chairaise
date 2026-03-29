@@ -308,7 +308,7 @@ export default function LandingPage() {
         <div style={{ display: "flex", gap: 24 }}>
           <a href="mailto:yuri@chairaise.com" style={{ color: "#71717a", fontSize: 12, textDecoration: "none" }}>Contact</a>
           <a href="/privacy" style={{ color: "#71717a", fontSize: 12, textDecoration: "none" }}>Privacy</a>
-          <a href="#" style={{ color: "#71717a", fontSize: 12, textDecoration: "none" }}>Terms</a>
+          <a href="/terms" style={{ color: "#71717a", fontSize: 12, textDecoration: "none" }}>Terms</a>
         </div>
         <p style={{ fontSize: 11, color: "#3f3f46" }}>© 2026 ChaiRaise. All rights reserved.</p>
       </footer>
