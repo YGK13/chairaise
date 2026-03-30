@@ -1344,8 +1344,14 @@ function DonorDetail({donor:d,acts,notes,onClose,onNote,onStage,onCompose,onEdit
           <div className="intel-grid">
             <div className="intel-card"><div className="il">Net Worth</div><div className="iv">{fmt$(d.net_worth)}</div></div>
             <div className="intel-card"><div className="il">Annual Giving</div><div className="iv">{fmt$(d.annual_giving)}</div></div>
-            <div className="intel-card"><div className="il">Warmth</div><div className="iv" style={{display:"flex",alignItems:"center",gap:8}}>{w}/10<div className="warmth-bar" style={{width:60}}><div className="warmth-fill" style={{width:`${w*10}%`,background:w>=7?"var(--green)":w>=4?"var(--accent)":"var(--blue)"}}/></div></div></div>
-            <div className="intel-card"><div className="il">Tier</div><div className="iv"><span className={"cell-tier "+(TIERS[d.tier]?.cls||"t3")}>{d.tier||"Tier 3"}</span></div></div>
+            <div className="intel-card"><div className="il">Warmth <span style={{fontSize:9,color:"var(--text4)"}}>(click to edit)</span></div><div className="iv" style={{display:"flex",alignItems:"center",gap:8}}>
+              <input type="range" min="0" max="10" value={w} onChange={e=>{const nw=parseInt(e.target.value);onEdit({...d,warmth_score:nw})}} style={{width:80,accentColor:w>=7?"#10b981":w>=4?"#f59e0b":"#3b82f6",cursor:"pointer"}}/>
+              <span style={{fontWeight:700,color:w>=7?"var(--green)":w>=4?"var(--accent)":"var(--blue)"}}>{w}/10</span>
+            </div></div>
+            <div className="intel-card" style={{cursor:"pointer"}} onClick={()=>{const tiers=["Tier 1","Tier 2","Tier 3"];const idx=tiers.indexOf(d.tier||"Tier 3");onEdit({...d,tier:tiers[(idx+1)%3]})}} title="Click to cycle tier">
+              <div className="il">Tier <span style={{fontSize:9,color:"var(--text4)"}}>(click to cycle)</span></div>
+              <div className="iv"><span className={"cell-tier "+(TIERS[d.tier]?.cls||"t3")}>{d.tier||"Tier 3"}</span></div>
+            </div>
             <div className="intel-card"><div className="il">Email</div><div className="iv" style={{fontSize:12}}>{d.email||"—"}</div></div>
             <div className="intel-card"><div className="il">Phone</div><div className="iv" style={{fontSize:12}}>{d.phone||"—"}</div></div>
             <div className="intel-card full"><div className="il">Focus Areas</div><div className="iv">{(d.focus_areas||[]).join(", ")||"—"}</div></div>
