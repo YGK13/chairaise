@@ -1158,6 +1158,34 @@ function Dashboard({donors,acts,deals,reminders,outreachLog,session,useDB,dbLoad
       </div>);
     })()}
 
+    {/* ===== 7-DAY ACTIVITY SPARKLINE ===== */}
+    {(()=>{
+      const days=[];
+      for(let i=6;i>=0;i--){
+        const d=new Date();d.setDate(d.getDate()-i);
+        const key=d.toISOString().slice(0,10);
+        const label=d.toLocaleDateString("en-US",{weekday:"short"});
+        const count=acts.filter(a=>a.date?.slice(0,10)===key).length;
+        days.push({key,label,count});
+      }
+      const maxCount=Math.max(...days.map(d=>d.count),1);
+      return(<div style={{marginBottom:16,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-lg)",padding:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <h3 style={{fontSize:14,fontWeight:700,margin:0}}>📊 Weekly Activity</h3>
+          <span style={{fontSize:11,color:"var(--text3)"}}>{acts.filter(a=>{const d=new Date(a.date);return(Date.now()-d)/864e5<=7}).length} activities this week</span>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"flex-end",height:60}}>
+          {days.map(d=>(
+            <div key={d.key} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <span style={{fontSize:9,fontWeight:700,color:d.count>0?"var(--accent)":"var(--text4)"}}>{d.count||""}</span>
+              <div style={{width:"100%",background:d.count>0?"var(--accent)":"var(--surface2)",borderRadius:3,height:`${Math.max((d.count/maxCount)*40,d.count>0?4:2)}px`,transition:"height .3s"}}/>
+              <span style={{fontSize:9,color:"var(--text4)"}}>{d.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>);
+    })()}
+
     <div className="dash-row">
       <div className="dash-panel"><h3>Pipeline Funnel</h3>
         {ps.map(s=><div className="funnel-row" key={s.id}><div className="funnel-label">{s.label}</div><div className="funnel-bar-bg"><div className="funnel-bar-fill" style={{width:`${Math.max((s.count/mx)*100,s.count>0?8:0)}%`,background:s.color}}>{s.count>0&&<span>{s.count}</span>}</div></div><div className="funnel-count">{s.count}</div></div>)}
@@ -3074,6 +3102,7 @@ function AppInner(){
             <option value="" disabled>Move to stage...</option>
             {STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
+          <button className="btn btn-ghost btn-sm" onClick={()=>setShowBatchEmail(true)}>✉️ Batch Email</button>
           <button className="btn btn-ghost btn-sm" style={{color:"var(--red)"}} onClick={bulkDelete}>🗑️ Delete</button>
         </div>
       </div>}
