@@ -1,8 +1,11 @@
 "use client";
 import {useState,useEffect,useCallback,useRef,useMemo} from "react";
 import {STAGES,TIERS,DEFAULT_TEMPLATES,ACT_TYPES} from "@/lib/constants";
-import {orgPrefix,sGet,sSet,getActiveOrg,getOrgProfile,fmt$,fmtD,fmtN,initials} from "@/lib/storage";
+import {orgPrefix,sGet,sSet,getActiveOrg,getOrgProfile,getOrgTemplates,fmt$,fmtD,fmtN,initials} from "@/lib/storage";
 import {callAI,aiScore,aiTemplate,aiLikelihood,aiAsk,causeMatch} from "@/lib/ai";
+
+// Runtime template alias — loads org-customized templates if available
+const TEMPLATES = typeof window !== "undefined" ? getOrgTemplates() : DEFAULT_TEMPLATES;
 
 function OutreachLogger({donors,onLog}){
   const[form,setForm]=useState({donorId:"",channel:"email",message:"",outcome:"pending",date:new Date().toISOString().slice(0,10),template_used:"",response_time:"",notes:""});
