@@ -2738,7 +2738,10 @@ function AppInner(){
   const[notes,setNotes]=useState(()=>sGetMigrate("notes",[]));
   const[deals,setDeals]=useState(()=>sGetMigrate("deals",[]));
   const[reminders,setReminders]=useState(()=>sGetMigrate("reminders",[]));
+  const[apiKey,setAKS]=useState(()=>sGetMigrate("key",""));
   const[waBridge,setWaBS]=useState(()=>sGetMigrate("wa_bridge","http://localhost:3001"));
+  const[pplxKey,setPplxKS]=useState(()=>sGetMigrate("pplx_key",""));
+  const[aiProvider,setAiProviderS]=useState(()=>sGetMigrate("ai_provider","anthropic"));
   const[useDB,setUseDB]=useState(false); // true when Neon DB is available
   const[dbLoading,setDbLoading]=useState(true);
 
