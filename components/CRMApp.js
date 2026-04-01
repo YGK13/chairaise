@@ -1520,8 +1520,15 @@ function CommandPalette({donors,onClose,onSelect,onNav,onAddDonor,onCompose}){
   useEffect(()=>{inputRef.current?.focus()},[]);
   const results=useMemo(()=>{
     const items=[];const ql=q.toLowerCase().trim();
-    if(!ql||"add donor new create".includes(ql)){
-      items.push({type:"action",icon:"➕",label:"Add New Donor",hint:"Create",action:()=>{onAddDonor();onClose()}});
+    // Quick actions (shown when empty or matching query)
+    const actions=[
+      {icon:"➕",label:"Add New Donor",keywords:"add donor new create",action:()=>{onAddDonor();onClose()}},
+      {icon:"🔍",label:"Advanced Search",keywords:"search find filter advanced",hint:"S",action:()=>{onClose();setTimeout(()=>document.dispatchEvent(new KeyboardEvent("keydown",{key:"s"})),100)}},
+      {icon:"⌨️",label:"Keyboard Shortcuts",keywords:"shortcuts keys help keyboard",hint:"?",action:()=>{onClose();setTimeout(()=>document.dispatchEvent(new KeyboardEvent("keydown",{key:"?"})),100)}},
+    ];
+    const matchedActions=actions.filter(a=>!ql||a.label.toLowerCase().includes(ql)||a.keywords.includes(ql));
+    if(matchedActions.length){
+      matchedActions.forEach(a=>items.push({type:"action",icon:a.icon,label:a.label,hint:a.hint||"Action",action:a.action}));
     }
     if(ql.length>0){
       const matched=donors.filter(d=>[d.name,d.community,d.industry,d.city,d.email,d.phone].some(v=>(v||"").toLowerCase().includes(ql))).slice(0,8);
