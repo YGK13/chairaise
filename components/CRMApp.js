@@ -2785,6 +2785,7 @@ function AppInner(){
   const[showBatchEmail,setShowBatchEmail]=useState(false);
   const[showAdvSearch,setShowAdvSearch]=useState(false);
   const[showOrgSwitcher,setShowOrgSwitcher]=useState(false);
+  const[showShortcuts,setShowShortcuts]=useState(false);
   const[orgProfile,setOrgProfile]=useState(()=>getOrgProfile());
 
   // ---- Donor merge handler (for duplicate detection) ----
@@ -2914,7 +2915,8 @@ function AppInner(){
       if(e.key==="s"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();setShowAdvSearch(true)}
       // B → Batch email
       if(e.key==="b"&&!e.ctrlKey&&!e.metaKey){setShowBatchEmail(true)}
-      // ? → Show keyboard shortcut help (future)
+      // ? → Show keyboard shortcut help
+      if(e.key==="?"){e.preventDefault();setShowShortcuts(v=>!v)}
     };
     window.addEventListener("keydown",handler);
     return()=>window.removeEventListener("keydown",handler);
@@ -3172,6 +3174,44 @@ function AppInner(){
     {showCSVImport&&<CSVImportMapper onImport={(imported)=>{
       setDonors(p=>[...p,...imported.map(d=>({...d,pipeline_stage:d.pipeline_stage||"not_started"}))]);
     }} onClose={()=>setShowCSVImport(false)}/>}
+
+    {/* KEYBOARD SHORTCUTS HELP MODAL */}
+    {showShortcuts&&<div className="modal-overlay" onClick={()=>setShowShortcuts(false)}>
+      <div className="modal" onClick={e=>e.stopPropagation()} style={{width:480}}>
+        <div className="modal-header"><h3>⌨️ Keyboard Shortcuts</h3><div style={{cursor:"pointer",color:"var(--text3)",fontSize:18}} onClick={()=>setShowShortcuts(false)}>✕</div></div>
+        <div className="modal-body" style={{maxHeight:"60vh",overflow:"auto"}}>
+          {[
+            {section:"Navigation",shortcuts:[
+              {keys:"Ctrl + K",desc:"Open command palette"},
+              {keys:"Alt + 1",desc:"Go to Dashboard"},
+              {keys:"Alt + 2",desc:"Go to Donors"},
+              {keys:"Alt + 3",desc:"Go to Campaigns"},
+              {keys:"Alt + 4",desc:"Go to Network"},
+              {keys:"Alt + 5",desc:"Go to Outreach"},
+            ]},
+            {section:"Actions",shortcuts:[
+              {keys:"N",desc:"Add new donor"},
+              {keys:"S",desc:"Open advanced search"},
+              {keys:"B",desc:"Open batch email"},
+              {keys:"?",desc:"Show this help"},
+            ]},
+            {section:"General",shortcuts:[
+              {keys:"Escape",desc:"Close any modal or panel"},
+            ]},
+          ].map(g=>(
+            <div key={g.section} style={{marginBottom:16}}>
+              <div style={{fontSize:11,fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>{g.section}</div>
+              {g.shortcuts.map(s=>(
+                <div key={s.keys} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid var(--border)"}}>
+                  <span style={{fontSize:12,color:"var(--text2)"}}>{s.desc}</span>
+                  <kbd style={{fontSize:11,fontWeight:600,background:"var(--surface2)",padding:"2px 8px",borderRadius:4,border:"1px solid var(--border)",fontFamily:"'JetBrains Mono',monospace",color:"var(--text)"}}>{s.keys}</kbd>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>}
   </div>);
 }
 
