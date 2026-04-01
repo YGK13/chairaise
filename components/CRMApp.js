@@ -387,6 +387,47 @@ function OrgAdminPanel({session,donors,acts,deals}){
     </div>
 
     {/* Danger Zone */}
+    {/* Cloud Sync — migrate localStorage data to Neon DB */}
+    {isAdmin&&<div className="admin-card" style={{borderColor:"rgba(16,185,129,0.3)"}}>
+      <h4 style={{color:"var(--green)"}}>☁️ Cloud Database Sync</h4>
+      <p style={{fontSize:12,color:"var(--text3)",marginBottom:12}}>Push your local donor data to the cloud database for persistence and multi-device access.</p>
+      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        <button className="btn btn-primary btn-sm" onClick={async()=>{
+          if(!confirm(`Upload ${donors.length} donors to the cloud database?`))return;
+          try{
+            const org=getActiveOrg();
+            let created=0,failed=0;
+            for(const d of donors){
+              try{
+                await donorsAPI.create(org.id,d);
+                created++;
+              }catch(e){
+                // Skip duplicates or errors
+                failed++;
+              }
+            }
+            addToast({type:"success",title:"Sync Complete",message:`${created} donors uploaded, ${failed} skipped (duplicates)`});
+            appendAudit({type:"import",action:"Cloud sync",detail:`${created} donors uploaded to DB`,user:session?.name});
+          }catch(e){
+            addToast({type:"error",title:"Sync Failed",message:e.message});
+          }
+        }}>⬆️ Push {donors.length} Donors to Cloud</button>
+        <button className="btn btn-ghost btn-sm" onClick={async()=>{
+          try{
+            const org=getActiveOrg();
+            const dbDonors=await donorsAPI.list(org.id);
+            if(dbDonors&&dbDonors.length>0){
+              addToast({type:"success",title:`${dbDonors.length} donors in cloud DB`,message:"Database is active and healthy"});
+            }else{
+              addToast({type:"info",title:"Cloud DB empty",message:"No donors in the database yet. Use Push to upload."});
+            }
+          }catch(e){
+            addToast({type:"error",title:"DB Check Failed",message:e.message});
+          }
+        }}>🔍 Check Cloud Status</button>
+      </div>
+    </div>}
+
     {isAdmin&&<div className="admin-card" style={{borderColor:"rgba(239,68,68,0.3)"}}>
       <h4 style={{color:"var(--red)"}}>⚠️ Danger Zone</h4>
       <p style={{fontSize:12,color:"var(--text3)",marginBottom:12}}>These actions cannot be undone.</p>
