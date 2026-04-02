@@ -1877,8 +1877,10 @@ function ActivityLogger({donor,onLog,onClose}){
 // ============================================================
 // COMPONENT: RemindersView — follow-up reminders dashboard
 // ============================================================
-function RemindersView({reminders,donors,onToggle,onDelete}){
+function RemindersView({reminders,donors,onToggle,onDelete,onAdd}){
   const today=new Date().toISOString().slice(0,10);
+  const[showAdd,setShowAdd]=useState(false);
+  const[newRem,setNewRem]=useState({did:"",summary:"",date:""});
   const sorted=useMemo(()=>[...reminders].sort((a,b)=>{
     if(a.done!==b.done)return a.done?1:-1;
     return new Date(a.date)-new Date(b.date);
@@ -1886,13 +1888,37 @@ function RemindersView({reminders,donors,onToggle,onDelete}){
   const overdue=reminders.filter(r=>!r.done&&r.date<today).length;
   const todayCount=reminders.filter(r=>!r.done&&r.date===today).length;
   const upcoming=reminders.filter(r=>!r.done&&r.date>today).length;
+  const addReminder=()=>{
+    if(!newRem.summary||!newRem.date)return;
+    if(onAdd)onAdd({id:Date.now(),did:newRem.did,summary:newRem.summary,date:newRem.date,created:new Date().toISOString(),done:false,type:"manual"});
+    setNewRem({did:"",summary:"",date:""});setShowAdd(false);
+  };
   return(<div className="content-scroll">
     <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
       <h2 style={{fontSize:18,fontWeight:700}}>🔔 Follow-up Reminders</h2>
       {overdue>0&&<span className="reminder-badge overdue">⚠️ {overdue} overdue</span>}
       {todayCount>0&&<span className="reminder-badge today">📌 {todayCount} today</span>}
       <span className="reminder-badge upcoming">{upcoming} upcoming</span>
+      <div style={{flex:1}}/>
+      <button className="btn btn-primary btn-sm" onClick={()=>setShowAdd(!showAdd)}>+ Add Reminder</button>
     </div>
+    {showAdd&&<div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-lg)",padding:16,marginBottom:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:10}}>
+        <div className="form-group"><label className="form-label">Reminder</label>
+          <input className="form-input" value={newRem.summary} onChange={e=>setNewRem(r=>({...r,summary:e.target.value}))} placeholder="Follow up with donor about..." onKeyDown={e=>e.key==="Enter"&&addReminder()}/></div>
+        <div className="form-group"><label className="form-label">Date</label>
+          <input className="form-input" type="date" value={newRem.date} onChange={e=>setNewRem(r=>({...r,date:e.target.value}))}/></div>
+        <div className="form-group"><label className="form-label">Donor (optional)</label>
+          <select className="form-select" value={newRem.did} onChange={e=>setNewRem(r=>({...r,did:e.target.value}))}>
+            <option value="">General</option>
+            {donors.map(d=><option key={d.id||d.name} value={d.id||d.name}>{d.name}</option>)}
+          </select></div>
+      </div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
+        <button className="btn btn-ghost btn-sm" onClick={()=>setShowAdd(false)}>Cancel</button>
+        <button className="btn btn-primary btn-sm" onClick={addReminder}>Add Reminder</button>
+      </div>
+    </div>}
     {sorted.length===0&&<div className="empty-state"><div className="empty-icon">🔔</div><h3>No reminders yet</h3><p>Log activities with follow-up dates to create reminders</p></div>}
     {sorted.map((r,i)=>{
       const d=donors.find(dd=>(dd.id||dd.name)===r.did);
@@ -3227,7 +3253,7 @@ function AppInner(){
         {page==="analytics"&&<AdvancedAnalytics donors={donors} acts={acts} deals={deals} campaigns={campaigns} outreachLog={outreachLog}/>}
         {page==="outreach"&&<OutreachCoach donors={donors} acts={acts} graphData={graphData} graphContacts={graphContacts} apiKey={apiKey} outreachLog={outreachLog} onLogOutreach={logOutreach}/>}
         {page==="deals"&&<DealsView deals={deals} donors={donors} onAdd={addDeal}/>}
-        {page==="reminders"&&<RemindersView reminders={reminders} donors={donors} onToggle={toggleReminder} onDelete={deleteReminder}/>}
+        {page==="reminders"&&<RemindersView reminders={reminders} donors={donors} onToggle={toggleReminder} onDelete={deleteReminder} onAdd={(r)=>setReminders(p=>[...p,r])}/>}
         {page==="whatsapp"&&<WhatsAppHub donors={donors} onLogActivities={a=>setActs(p=>[...p,a])}/>}
         {page==="email"&&<div className="content-scroll"><div style={{maxWidth:500,margin:"20px auto",textAlign:"center"}}><h3 style={{marginBottom:8}}>Quick Compose</h3><p style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>Select a donor to compose an AI email</p><select className="form-select" onChange={e=>{const dd=donors.find(x=>(x.id||x.name)==e.target.value);if(dd)setCompD(dd)}}><option value="">Choose donor...</option>{donors.map(dd=><option key={dd.id||dd.name} value={dd.id||dd.name}>{dd.name}</option>)}</select></div></div>}
         {page==="leaderboard"&&<PriorityLeaderboard donors={donors} acts={acts} onSelect={d=>{setSelD(d);setPage("donors");setSub("list")}}/>}
