@@ -23,7 +23,7 @@ function OnboardingWizard({onComplete,onSkip}){
   const[orgProfile,setOrgProfile]=useState(null);
   const[researchErr,setResearchErr]=useState("");
 
-  const steps=["Welcome","Organization","AI Research","Data","AI Key","Ready"];
+  const steps=["Welcome","Organization","AI Research","Data","AI Features","Ready"];
 
   const runResearch=async()=>{
     const activeKey=aiProv==="perplexity"?pplxK:apiKey;
@@ -194,24 +194,28 @@ function OnboardingWizard({onComplete,onSkip}){
           </div>
         </div>}
 
-        {/* Step 4: AI Key — supports Anthropic + Perplexity */}
+        {/* Step 4: AI Confirmation — no more API key input (keys are server-side) */}
         {step===4&&<div>
-          <h3 style={{fontSize:16,fontWeight:700,marginBottom:8}}>AI Engine Setup</h3>
-          <p style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>Powers email generation, donor briefs, org research, and outreach coaching. You can change this later in Settings.</p>
-          <div style={{display:"flex",gap:8,marginBottom:12}}>
-            {[{id:"anthropic",label:"Anthropic (Claude)",icon:"🟠"},{id:"perplexity",label:"Perplexity",icon:"🔵"}].map(p=>(
-              <div key={p.id} onClick={()=>setAiProv(p.id)} style={{flex:1,padding:12,borderRadius:"var(--radius)",border:"2px solid "+(aiProv===p.id?"var(--accent)":"var(--border)"),background:aiProv===p.id?"var(--accent-soft)":"var(--surface)",cursor:"pointer",textAlign:"center"}}>
-                <div style={{fontSize:20}}>{p.icon}</div>
-                <div style={{fontSize:12,fontWeight:700}}>{p.label}</div>
+          <h3 style={{fontSize:16,fontWeight:700,marginBottom:8}}>AI-Powered Features</h3>
+          <p style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>ChaiRaise uses AI to supercharge your fundraising. Everything is ready to go — no API keys needed on your end.</p>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            {[
+              {icon:"🧠",title:"Org Intelligence",desc:"AI researches your mission, programs, and known donors automatically"},
+              {icon:"✉️",title:"Smart Email",desc:"One-click personalized outreach emails using your org's talking points"},
+              {icon:"🎯",title:"Cause Matching",desc:"Every donor gets a match score showing alignment with your mission"},
+              {icon:"📊",title:"Engagement Scoring",desc:"AI tracks and scores donor engagement across all touchpoints"},
+            ].map(f=>(
+              <div key={f.title} style={{padding:14,borderRadius:"var(--radius)",background:"var(--surface)",border:"1px solid var(--border)"}}>
+                <div style={{fontSize:20,marginBottom:6}}>{f.icon}</div>
+                <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>{f.title}</div>
+                <div style={{fontSize:11,color:"var(--text3)",lineHeight:1.5}}>{f.desc}</div>
               </div>
             ))}
           </div>
-          {aiProv==="anthropic"&&<div className="form-group"><label className="form-label">Anthropic API Key</label>
-            <input className="form-input" type="password" value={apiKey} onChange={e=>setApiKey(e.target.value)} placeholder="sk-ant-api03-..."/>
-            <div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>console.anthropic.com → API Keys</div></div>}
-          {aiProv==="perplexity"&&<div className="form-group"><label className="form-label">Perplexity API Key</label>
-            <input className="form-input" type="password" value={pplxK} onChange={e=>setPplxK(e.target.value)} placeholder="pplx-..."/>
-            <div style={{fontSize:10,color:"var(--text4)",marginTop:4}}>perplexity.ai → Settings → API</div></div>}
+          <div style={{marginTop:16,padding:12,borderRadius:"var(--radius)",background:"var(--green-soft)",border:"1px solid rgba(16,185,129,0.2)"}}>
+            <div style={{fontSize:12,color:"var(--green)",fontWeight:600}}>✓ AI is configured and ready</div>
+            <div style={{fontSize:11,color:"var(--text3)",marginTop:2}}>Powered by Claude (Anthropic). Your admin can adjust AI settings later.</div>
+          </div>
           <div style={{fontSize:11,color:"var(--text3)",marginTop:8}}>Your key stays in your browser only. Never sent anywhere except the provider's API.</div>
         </div>}
 
