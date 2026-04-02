@@ -60,7 +60,7 @@ export default function LandingPage() {
         </div>
         <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
           <a href="#features" style={{ color: "#a1a1aa", fontSize: 13, fontWeight: 500, textDecoration: "none" }}>Features</a>
-          <a href="#for-who" style={{ color: "#a1a1aa", fontSize: 13, fontWeight: 500, textDecoration: "none" }}>For Who</a>
+          <a href="#how" style={{ color: "#a1a1aa", fontSize: 13, fontWeight: 500, textDecoration: "none" }}>How It Works</a>
           <a href="#pricing" style={{ color: "#a1a1aa", fontSize: 13, fontWeight: 500, textDecoration: "none" }}>Pricing</a>
           <Link href="/auth/signin" style={{
             padding: "8px 20px", background: "#f59e0b", color: "#09090b",
@@ -151,6 +151,58 @@ export default function LandingPage() {
               <p style={{ fontSize: 13, color: "#a1a1aa", lineHeight: 1.6 }}>{f.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* ===== HOW IT WORKS ===== */}
+      <section style={{
+        padding: "80px 24px", borderTop: "1px solid #27272a",
+        background: "radial-gradient(ellipse at 50% 50%, rgba(245,158,11,0.04) 0%, transparent 70%)",
+      }}>
+        <div style={{ maxWidth: 900, margin: "0 auto" }}>
+          <h2 style={{ fontSize: 36, fontWeight: 800, textAlign: "center", marginBottom: 12, letterSpacing: -1 }}>
+            Up and Running in 5 Minutes
+          </h2>
+          <p style={{ fontSize: 16, color: "#71717a", textAlign: "center", marginBottom: 48 }}>
+            No IT department needed. No migration headaches. Just results.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 24 }}>
+            {[
+              { step: "1", title: "Enter Your Org", desc: "Name + website. AI instantly researches your mission, programs, and known donors.", icon: "🏛️" },
+              { step: "2", title: "Import Contacts", desc: "Upload your LinkedIn connections or Google contacts. We map every relationship.", icon: "📇" },
+              { step: "3", title: "AI Matches Donors", desc: "Each donor gets a cause match score showing how aligned they are with YOUR mission.", icon: "🎯" },
+              { step: "4", title: "Send & Track", desc: "AI drafts personalized emails. Send with one click. Track everything in real time.", icon: "📈" },
+            ].map(s => (
+              <div key={s.step} style={{ textAlign: "center" }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: "50%",
+                  background: "rgba(245,158,11,0.12)", color: "#f59e0b",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  fontSize: 24, margin: "0 auto 12px", fontWeight: 800,
+                }}>{s.icon}</div>
+                <div style={{ fontSize: 12, color: "#f59e0b", fontWeight: 700, marginBottom: 4 }}>Step {s.step}</div>
+                <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>{s.title}</h3>
+                <p style={{ fontSize: 13, color: "#a1a1aa", lineHeight: 1.6 }}>{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== SOCIAL PROOF / TESTIMONIAL ===== */}
+      <section style={{
+        padding: "60px 24px",
+        borderTop: "1px solid #27272a",
+      }}>
+        <div style={{ maxWidth: 700, margin: "0 auto", textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 16 }}>✡️</div>
+          <blockquote style={{
+            fontSize: 20, fontWeight: 500, fontStyle: "italic", lineHeight: 1.6,
+            color: "#fafafa", marginBottom: 16,
+          }}>
+            &ldquo;We replaced three tools and a spreadsheet with ChaiRaise. The AI knows our donors better than we do.&rdquo;
+          </blockquote>
+          <p style={{ fontSize: 13, color: "#71717a" }}>— Development Director, Major Jewish Organization</p>
         </div>
       </section>
 
