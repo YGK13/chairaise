@@ -2639,23 +2639,41 @@ function IntegrationHub({donors,onImportDonors}){
 // COMPONENT: OnboardingWizard — guided setup for new orgs
 // ============================================================
 function DealsView({deals,donors,onAdd}){
-  const[show,setShow]=useState(false);const[nd,setNd]=useState({did:"",amt:"",stage:"not_started",notes:""});
+  const[show,setShow]=useState(false);const[nd,setNd]=useState({did:"",amt:"",stage:"not_started",notes:"",expected_close:""});
+  const totalPipeline=deals.reduce((s,d)=>s+(parseInt(d.amt)||0),0);
+  const committed=deals.filter(d=>d.stage==="commitment").reduce((s,d)=>s+(parseInt(d.amt)||0),0);
   return(<div className="content-scroll">
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}><h3 style={{fontSize:15,fontWeight:700}}>Deals / Gift Opportunities</h3><button className="btn btn-primary" onClick={()=>setShow(!show)}>+ New Deal</button></div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div>
+        <h3 style={{fontSize:15,fontWeight:700}}>Deals / Gift Opportunities</h3>
+        <div style={{display:"flex",gap:16,marginTop:4}}>
+          <span style={{fontSize:12,color:"var(--text3)"}}>{deals.length} deals</span>
+          <span style={{fontSize:12,color:"var(--accent)",fontWeight:600}}>Pipeline: {fmt$(totalPipeline)}</span>
+          <span style={{fontSize:12,color:"var(--green)",fontWeight:600}}>Committed: {fmt$(committed)}</span>
+        </div>
+      </div>
+      <button className="btn btn-primary" onClick={()=>setShow(!show)}>+ New Deal</button>
+    </div>
     {show&&<div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-lg)",padding:16,marginBottom:16}}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
         <div className="form-group"><label className="form-label">Donor</label><select className="form-select" value={nd.did} onChange={e=>setNd(d=>({...d,did:e.target.value}))}><option value="">Select...</option>{donors.map(d=><option key={d.id||d.name} value={d.id||d.name}>{d.name}</option>)}</select></div>
         <div className="form-group"><label className="form-label">Ask Amount ($)</label><input className="form-input" type="number" value={nd.amt} onChange={e=>setNd(d=>({...d,amt:e.target.value}))} placeholder="50000"/></div>
+        <div className="form-group"><label className="form-label">Expected Close</label><input className="form-input" type="date" value={nd.expected_close} onChange={e=>setNd(d=>({...d,expected_close:e.target.value}))}/></div>
       </div>
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button className="btn btn-ghost" onClick={()=>setShow(false)}>Cancel</button><button className="btn btn-primary" onClick={()=>{if(!nd.did||!nd.amt)return;onAdd({...nd,id:Date.now(),amt:parseInt(nd.amt),created:new Date().toISOString()});setNd({did:"",amt:"",stage:"not_started",notes:""});setShow(false)}}>Create</button></div>
+      <div className="form-group"><label className="form-label">Notes</label><input className="form-input" value={nd.notes} onChange={e=>setNd(d=>({...d,notes:e.target.value}))} placeholder="Gift context, conditions, etc."/></div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button className="btn btn-ghost" onClick={()=>setShow(false)}>Cancel</button><button className="btn btn-primary" onClick={()=>{if(!nd.did||!nd.amt)return;onAdd({...nd,id:Date.now(),amt:parseInt(nd.amt),created:new Date().toISOString()});setNd({did:"",amt:"",stage:"not_started",notes:"",expected_close:""});setShow(false)}}>Create</button></div>
     </div>}
-    {deals.length===0?<div className="empty-state"><div className="empty-icon">💎</div><h3>No deals yet</h3><p>Create a deal to track gift opportunities</p></div>:
-    <table className="list-table"><thead><tr><th>Donor</th><th>Amount</th><th>Stage</th><th>Created</th></tr></thead><tbody>
-      {deals.map(deal=>{const donor=donors.find(d=>(d.id||d.name)===deal.did);const stg=STAGES.find(s=>s.id===deal.stage);return(
-        <tr key={deal.id}><td><div className="cell-name"><div className="avatar">{initials(donor?.name)}</div>{donor?.name||"Unknown"}</div></td>
-          <td className="cell-amount" style={{color:"var(--green)"}}>{fmt$(deal.amt)}</td>
+    {deals.length===0?<div className="empty-state"><div className="empty-icon">💎</div><h3>No deals yet</h3><p>Create a deal to track gift opportunities and pledges</p></div>:
+    <table className="list-table"><thead><tr><th>Donor</th><th>Amount</th><th>Stage</th><th>Expected Close</th><th>Notes</th><th>Created</th></tr></thead><tbody>
+      {deals.sort((a,b)=>(parseInt(b.amt)||0)-(parseInt(a.amt)||0)).map(deal=>{const donor=donors.find(d=>(d.id||d.name)===deal.did);const stg=STAGES.find(s=>s.id===deal.stage);return(
+        <tr key={deal.id}>
+          <td><div className="cell-name"><div className="avatar" style={{background:donor?.tier==="Tier 1"?"var(--accent-soft)":"var(--surface3)",color:donor?.tier==="Tier 1"?"var(--accent)":"var(--text3)"}}>{initials(donor?.name)}</div><div><div>{donor?.name||"Unknown"}</div><div style={{fontSize:10,color:"var(--text4)"}}>{donor?.community||""}</div></div></div></td>
+          <td className="cell-amount" style={{color:"var(--green)",fontSize:14,fontWeight:700}}>{fmt$(deal.amt)}</td>
           <td><span className="cell-stage" style={{background:(stg?.color||"#52525b")+"20",color:stg?.color}}>● {stg?.label}</span></td>
-          <td style={{fontSize:12,color:"var(--text3)"}}>{fmtD(deal.created)}</td></tr>)})}
+          <td style={{fontSize:12,color:deal.expected_close?"var(--text2)":"var(--text4)"}}>{deal.expected_close?fmtD(deal.expected_close):"—"}</td>
+          <td style={{fontSize:12,color:"var(--text3)",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{deal.notes||"—"}</td>
+          <td style={{fontSize:11,color:"var(--text4)"}}>{fmtD(deal.created)}</td>
+        </tr>)})}
     </tbody></table>}
   </div>);
 }
@@ -3165,7 +3183,9 @@ function AppInner(){
       <div className="top-bar">
         <div className="page-title">{NAV.find(n=>n.id===page)?.icon} {NAV.find(n=>n.id===page)?.label}</div>
         <div className="page-subtitle">{page==="dashboard"&&donors.length+" donors"}{page==="donors"&&donors.length+" total"}{page==="deals"&&deals.length+" opps"}{page==="activities"&&acts.length+" logged"}{page==="reminders"&&reminders.filter(r=>!r.done).length+" pending"}</div>
-        <div className="search-global"><input placeholder="Search... (Ctrl+K)" onClick={()=>setShowCmdK(true)} onFocus={e=>{e.target.blur();setShowCmdK(true)}} readOnly style={{cursor:"pointer"}}/></div>
+        <div className="search-global" onClick={()=>setShowCmdK(true)} style={{cursor:"pointer"}}>
+          <input placeholder="Search donors, navigate... (Ctrl+K)" onFocus={e=>{e.target.blur();setShowCmdK(true)}} readOnly style={{cursor:"pointer"}}/>
+        </div>
         {page==="donors"&&<>
           <button className="btn btn-primary btn-sm" onClick={()=>setDonorForm({})}>+ Add Donor</button>
           <button className="btn btn-ghost btn-sm" onClick={()=>setShowCSVImport(true)}>📥 Import CSV</button>
