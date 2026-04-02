@@ -1439,9 +1439,32 @@ function DonorDetail({donor:d,acts,notes,onClose,onNote,onStage,onCompose,onEdit
             ))}
           </>}
         </div>}
-        {tab==="timeline"&&<div className="timeline" style={{padding:0}}>
-          {da.length===0&&<p style={{color:"var(--text3)",fontSize:12}}>No activities yet</p>}
-          {da.sort((a,b)=>new Date(b.date)-new Date(a.date)).map((a,i)=><div className="timeline-item" key={i}><div className={"timeline-dot "+(a.type==="email"?"email":"note")}>{a.type==="email"?"✉️":a.type==="call"?"📞":"📝"}</div><div className="timeline-body"><div className="tl-header"><div className="tl-title">{a.type}</div><div className="tl-date">{fmtD(a.date)}</div></div><div className="tl-desc">{a.summary}</div></div></div>)}
+        {tab==="timeline"&&<div style={{padding:0}}>
+          {da.length===0&&<div style={{textAlign:"center",padding:"32px 0"}}>
+            <div style={{fontSize:32,marginBottom:8}}>📋</div>
+            <p style={{fontSize:13,color:"var(--text3)",marginBottom:4}}>No activities yet</p>
+            <p style={{fontSize:11,color:"var(--text4)"}}>Log calls, emails, meetings, and notes to build a complete timeline.</p>
+          </div>}
+          {da.length>0&&<div style={{fontSize:11,color:"var(--text3)",marginBottom:12}}>{da.length} activities</div>}
+          {da.sort((a,b)=>new Date(b.date)-new Date(a.date)).map((a,i)=>{
+            const actType=ACT_TYPES.find(t=>t.id===a.type)||{icon:"📝",label:a.type||"Note",color:"var(--text3)"};
+            const daysAgo=Math.round((Date.now()-new Date(a.date))/864e5);
+            const relTime=daysAgo===0?"Today":daysAgo===1?"Yesterday":`${daysAgo}d ago`;
+            return(<div key={i} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:"1px solid var(--border)"}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:actType.color?.replace("var(","").replace(")","")?"rgba(245,158,11,0.12)":"var(--surface2)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>{actType.icon}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:2}}>
+                  <span style={{fontSize:12,fontWeight:700,color:"var(--text)"}}>{actType.label}</span>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:10,color:"var(--accent)",fontWeight:600}}>{relTime}</span>
+                    <span style={{fontSize:10,color:"var(--text4)"}}>{fmtD(a.date)}</span>
+                  </div>
+                </div>
+                <div style={{fontSize:12,color:"var(--text2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a.summary||"—"}</div>
+                {a.outcome&&<span style={{fontSize:9,padding:"1px 6px",borderRadius:4,marginTop:4,display:"inline-block",background:a.outcome==="positive"?"var(--green-soft)":a.outcome==="negative"?"var(--red-soft)":"var(--surface2)",color:a.outcome==="positive"?"var(--green)":a.outcome==="negative"?"var(--red)":"var(--text3)",fontWeight:600}}>{a.outcome}</span>}
+              </div>
+            </div>);
+          })}
         </div>}
         {tab==="whatsapp"&&<WhatsAppChat donor={d} onLogActivity={(a)=>onNote(a)}/>}
         {tab==="notes"&&<>
