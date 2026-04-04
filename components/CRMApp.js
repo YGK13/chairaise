@@ -1263,7 +1263,13 @@ function ListView({donors,acts,onSelect,selId,onStage,bulkSel,onToggleBulk}){
       <input className="form-input" placeholder="Search..." value={ft.q} onChange={e=>setFt(f=>({...f,q:e.target.value}))} style={{maxWidth:220,padding:"6px 10px"}}/>
       <select className="form-select" value={ft.tier} onChange={e=>setFt(f=>({...f,tier:e.target.value}))} style={{width:110,padding:"6px 10px"}}><option value="all">All Tiers</option><option value="Tier 1">Tier 1</option><option value="Tier 2">Tier 2</option><option value="Tier 3">Tier 3</option></select>
       <select className="form-select" value={ft.stage} onChange={e=>setFt(f=>({...f,stage:e.target.value}))} style={{width:150,padding:"6px 10px"}}><option value="all">All Stages</option>{STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select>
-      <div style={{flex:1}}/><span style={{fontSize:11,color:"var(--text3)"}}>{list.length} donors</span>
+      <div style={{flex:1}}/>
+      <button className="btn btn-ghost btn-sm" onClick={()=>{
+        const cols=DONOR_FIELDS.map(f=>({key:f.key,label:f.label}));
+        cols.push({key:"pipeline_stage",label:"Pipeline Stage"});
+        exportToCSV(list,"chairaise_donors_export.csv",cols);
+      }} title="Export filtered donors to CSV">📥 Export</button>
+      <span style={{fontSize:11,color:"var(--text3)"}}>{list.length} donors</span>
     </div>
     <div style={{flex:1,overflow:"auto"}}>
       <table className="list-table"><thead><tr>
@@ -1287,7 +1293,7 @@ function ListView({donors,acts,onSelect,selId,onStage,bulkSel,onToggleBulk}){
           <td className="cell-amount">{fmt$(d.net_worth)}</td>
           <td className="cell-amount">{fmt$(d.annual_giving)}</td>
           <td style={{fontSize:12}}>{d.community||"—"}</td>
-          <td><span className="cell-stage" style={{background:(stg?.color||"#52525b")+"20",color:stg?.color}}>● {stg?.label}</span></td>
+          <td onClick={e=>e.stopPropagation()}><select className="form-select" value={d.pipeline_stage||"not_started"} onChange={e=>onStage(did,e.target.value)} style={{padding:"3px 6px",fontSize:11,fontWeight:600,background:(stg?.color||"#52525b")+"15",color:stg?.color,border:"1px solid "+(stg?.color||"#52525b")+"40",borderRadius:6,cursor:"pointer",minWidth:100}}>{STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></td>
           <td><div className="cell-warmth"><div className="warmth-bar"><div className="warmth-fill" style={{width:`${w*10}%`,background:w>=7?"var(--green)":w>=4?"var(--accent)":"var(--blue)"}}/></div><span style={{fontSize:11,fontWeight:600}}>{w}</span></div></td>
           <td><div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:32,height:4,background:"var(--surface3)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${eng}%`,height:"100%",borderRadius:2,background:eng>=70?"var(--green)":eng>=40?"var(--accent)":"var(--blue)"}}/></div><span style={{fontSize:11,fontWeight:600}}>{eng}</span></div></td>
           <td><span className="ai-badge">⚡{tmpl?.name?.split(" ")[0]}</span></td>
