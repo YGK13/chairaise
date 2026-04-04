@@ -1499,7 +1499,7 @@ function EmailComposer({donor:d,apiKey,pplxKey,aiProvider,onClose,onSend}){
     setLoading(true);setErr("");
     const t=TEMPLATES.find(x=>x.id===tmpl);
     const orgCtx=orgProfile.mission?`Organization: ${org.name}\nMission: ${orgProfile.mission}\nKey Programs: ${(orgProfile.key_programs||[]).join(", ")}\nTalking Points: ${(orgProfile.talking_points||[]).join("; ")}`:`Organization: ${org.name} — ${org.tagline||"Jewish nonprofit fundraising"}`;
-    const prompt=`You are a world-class fundraising copywriter. Write a personalized outreach email.\n\n${orgCtx}\n\nDonor Profile:\nName: ${d.name}\nCommunity: ${d.community||"Unknown"}\nIndustry: ${d.industry||"Unknown"}\nNet Worth: ${fmt$(d.net_worth)}\nAnnual Giving: ${fmt$(d.annual_giving)}\nFocus: ${(d.focus_areas||[]).join(", ")}\nConnectors: ${(d.connector_paths||[]).map(c=>c.name+" ("+c.role+")").join(", ")}\nTemplate: ${t?.name} — ${t?.segment}\nHooks: ${t?.hooks}\n\nWrite ONLY the email body. Be warm, personal, compelling. Reference specific donor details and the org's mission. 150-250 words. End with a clear CTA for a meeting. Sign as "Yuri Kruman, ${org.name} Development".`;
+    const prompt=`You are a world-class fundraising copywriter. Write a personalized outreach email.\n\n${orgCtx}\n\nDonor Profile:\nName: ${d.name}\nCommunity: ${d.community||"Unknown"}\nIndustry: ${d.industry||"Unknown"}\nNet Worth: ${fmt$(d.net_worth)}\nAnnual Giving: ${fmt$(d.annual_giving)}\nFocus: ${(d.focus_areas||[]).join(", ")}\nConnectors: ${(d.connector_paths||[]).map(c=>c.name+" ("+c.role+")").join(", ")}\nTemplate: ${t?.name} — ${t?.segment}\nHooks: ${t?.hooks}\n\nWrite ONLY the email body. Be warm, personal, compelling. Reference specific donor details and the org's mission. 150-250 words. End with a clear CTA for a meeting. Sign as the sender from ${org.name} Development team.`;
     try{
       const result=await callAI(prompt,aiProvider,apiKey,pplxKey);
       setBody(result);
@@ -1516,7 +1516,15 @@ function EmailComposer({donor:d,apiKey,pplxKey,aiProvider,onClose,onSend}){
       <div className="form-group"><label className="form-label">Subject</label><input className="form-input" value={subj} onChange={e=>setSubj(e.target.value)} placeholder="Subject..."/></div>
       <div className="form-group"><label className="form-label">Body</label><textarea className="form-textarea" value={body} onChange={e=>setBody(e.target.value)} placeholder="AI-generated or type manually..." style={{minHeight:200}}/></div>
     </div>
-    <div className="modal-footer"><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={()=>{onSend({did:d.id||d.name,tmpl,subj,body,date:new Date().toISOString()});onClose()}} disabled={!subj||!body}>Save Draft & Log</button></div>
+    <div className="modal-footer">
+      <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+      <button className="btn btn-ghost" onClick={()=>{
+        navigator.clipboard.writeText(`Subject: ${subj}\n\n${body}`);
+        alert("Email copied to clipboard! Paste into Gmail or your email client.");
+      }} disabled={!body} title="Copy email text to clipboard">📋 Copy</button>
+      {d.email&&<button className="btn btn-primary" onClick={()=>{onSend({did:d.id||d.name,tmpl,subj,body,recipientEmail:d.email,date:new Date().toISOString()});onClose()}} disabled={!subj||!body}>✉️ Send to {d.email.split("@")[0]}</button>}
+      <button className={d.email?"btn btn-ghost":"btn btn-primary"} onClick={()=>{onSend({did:d.id||d.name,tmpl,subj,body,date:new Date().toISOString()});onClose()}} disabled={!subj||!body}>{d.email?"Save Draft":"Save Draft & Log"}</button>
+    </div>
   </div></div>);
 }
 
