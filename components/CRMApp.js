@@ -3201,6 +3201,8 @@ function AppInner(){
       {NAV.map(n=><div key={n.id} className={"nav-item "+(page===n.id?"active":"")} onClick={()=>{setPage(n.id);if(n.id==="donors")setSub("list")}} title={n.label} role="button" tabIndex={0} aria-label={n.label} aria-current={page===n.id?"page":undefined} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setPage(n.id);if(n.id==="donors")setSub("list")}}} style={{position:"relative"}}>
         {n.icon}
         {n.id==="reminders"&&remindersDue>0&&<div style={{position:"absolute",top:2,right:2,width:14,height:14,borderRadius:7,background:"var(--red)",fontSize:9,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center"}}>{remindersDue}</div>}
+        {n.id==="donors"&&donors&&donors.length>0&&<div style={{position:"absolute",top:2,right:0,fontSize:8,fontWeight:700,color:"var(--text4)"}}>{donors.length}</div>}
+        {n.id==="deals"&&deals.length>0&&<div style={{position:"absolute",top:2,right:0,fontSize:8,fontWeight:700,color:"var(--text4)"}}>{deals.length}</div>}
       </div>)}
       <div className="nav-spacer"/>
       <NotificationBell reminders={reminders} donors={donors||[]} outreachLog={outreachLog} acts={acts}/>
