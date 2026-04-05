@@ -3208,7 +3208,12 @@ function AppInner(){
   }
 
   if(!donors&&!showWizard)return <DataLoader onLoad={loadData}/>;
-  if(!donors&&showWizard)return <OnboardingWizard onComplete={handleWizardComplete} onSkip={()=>{setShowWizard(false)}}/>;
+  if(!donors&&showWizard)return <OnboardingWizard onComplete={handleWizardComplete} onSkip={()=>{
+    // Skip setup → auto-load demo data so user isn't stuck on DataLoader
+    const demo=generateDemoData();
+    loadData(demo);
+    setShowWizard(false);
+  }}/>;
 
   return(<div className="app-shell" role="application" aria-label="ChaiRaise CRM">
     {/* NAV RAIL */}
