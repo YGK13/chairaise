@@ -311,7 +311,7 @@ export default function LandingPage() {
               <li>✓ Unlimited team members</li>
               <li>✓ White-label option</li>
             </ul>
-            <a href="mailto:yuri@chairaise.com" style={{
+            <a href="mailto:hello@chairaise.com" style={{
               display: "block", textAlign: "center", padding: "12px",
               border: "1px solid #3f3f46", borderRadius: 8, color: "#fafafa",
               fontSize: 14, fontWeight: 600, textDecoration: "none",
@@ -358,7 +358,7 @@ export default function LandingPage() {
           <p style={{ fontSize: 11, color: "#52525b" }}>Multiply your impact by 18.</p>
         </div>
         <div style={{ display: "flex", gap: 24 }}>
-          <a href="mailto:yuri@chairaise.com" style={{ color: "#71717a", fontSize: 12, textDecoration: "none" }}>Contact</a>
+          <a href="mailto:hello@chairaise.com" style={{ color: "#71717a", fontSize: 12, textDecoration: "none" }}>Contact</a>
           <a href="/privacy" style={{ color: "#71717a", fontSize: 12, textDecoration: "none" }}>Privacy</a>
           <a href="/terms" style={{ color: "#71717a", fontSize: 12, textDecoration: "none" }}>Terms</a>
         </div>

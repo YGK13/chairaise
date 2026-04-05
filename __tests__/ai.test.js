@@ -39,7 +39,7 @@ describe("aiTemplate", () => {
   });
 
   it("returns T-A for donors with school", () => {
-    expect(aiTemplate({ school: "UPenn" })).toBe("T-A");
+    expect(aiTemplate({ school: "Sample University" })).toBe("T-A");
   });
 
   it("returns T-B for synagogue community", () => {

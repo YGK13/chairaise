@@ -517,7 +517,7 @@ function NetworkGraphSVG({graphData,donors,graphContacts,sortedPaths}){
     const links=[];
 
     // Center node: YOU
-    nodeMap.set("YOU",{id:"YOU",name:"You (Yuri)",type:"you",x:dimensions.w/2,y:dimensions.h/2,r:20});
+    nodeMap.set("YOU",{id:"YOU",name:"You",type:"you",x:dimensions.w/2,y:dimensions.h/2,r:20});
 
     sortedPaths.forEach((entry,pathIdx)=>{
       const{donor,path}=entry;
@@ -775,7 +775,7 @@ function GmailIntegration({graphContacts,setGraphContacts,donors,rebuildGraph}){
     </p>
 
     <textarea className="form-textarea" value={headerText} onChange={e=>setHeaderText(e.target.value)}
-      placeholder={'Paste email headers, To/From/CC lines, or full email threads here...\n\nExamples:\nFrom: David Goldstein <david@goldsteinfoundation.org>\nTo: Sarah Roth <sarah@rothfamily.com>, Michael Safra <m.safra@safra.com>\nCC: "Rachel Levy" <rachel.levy@uja.org>'} style={{minHeight:100,marginBottom:8}}/>
+      placeholder={'Paste email headers, To/From/CC lines, or full email threads here...\n\nExamples:\nFrom: David Goldstein <david@goldsteinfoundation.org>\nTo: Sarah Roth <sarah@rothfamily.com>, Michael Sherman <m.sherman@shermanfoundation.org>\nCC: "Rachel Levy" <rachel.levy@uja.org>'} style={{minHeight:100,marginBottom:8}}/>
 
     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
       <button className="btn btn-primary btn-sm" onClick={importFromHeaders} disabled={!headerText.trim()}>📥 Import from Headers</button>
