@@ -1310,18 +1310,29 @@ function ListView({donors,acts,onSelect,selId,onStage,bulkSel,onToggleBulk}){
 function BoardView({donors,acts,onSelect,onStage}){
   const cols=useMemo(()=>STAGES.map(s=>({...s,donors:donors.filter(d=>(d.pipeline_stage||"not_started")===s.id).sort((a,b)=>parseInt(b.warmth_score||0)-parseInt(a.warmth_score||0))})),[donors]);
   const[drag,setDrag]=useState(null);
+  const[dropTarget,setDropTarget]=useState(null);
   return(<div className="board">
-    {cols.map(col=><div className="board-col" key={col.id} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();if(drag&&(drag.pipeline_stage||"not_started")!==col.id){onStage(drag.id||drag.name,col.id)}setDrag(null)}}>
-      <div className="board-col-header"><div className="col-dot" style={{background:col.color}}/><div className="col-title">{col.label}</div><div className="col-count">{col.donors.length}</div></div>
+    {cols.map(col=><div className="board-col" key={col.id}
+      onDragOver={e=>{e.preventDefault();setDropTarget(col.id)}}
+      onDragLeave={()=>setDropTarget(null)}
+      onDrop={e=>{e.preventDefault();if(drag&&(drag.pipeline_stage||"not_started")!==col.id){onStage(drag.id||drag.name,col.id)}setDrag(null);setDropTarget(null)}}
+      style={{border:dropTarget===col.id&&drag?"2px solid "+col.color:undefined,background:dropTarget===col.id&&drag?col.color+"10":undefined,transition:"all .15s"}}>
+      <div className="board-col-header"><div className="col-dot" style={{background:col.color}}/><div className="col-title">{col.label}</div><div className="col-count">{col.donors.length}</div>
+        {col.donors.length>0&&<span style={{fontSize:9,color:"var(--text4)",marginLeft:"auto"}}>{fmt$(col.donors.reduce((s,d)=>s+(parseInt(d.giving_capacity||d.net_worth||0)),0))}</span>}
+      </div>
       <div className="board-col-body">
         {col.donors.map(d=>{const eng=aiScore(d,acts);return(
-          <div className="board-card" key={d.id||d.name} draggable onDragStart={()=>setDrag(d)} onClick={()=>onSelect(d)}>
+          <div className="board-card" key={d.id||d.name} draggable
+            onDragStart={()=>setDrag(d)}
+            onDragEnd={()=>{setDrag(null);setDropTarget(null)}}
+            onClick={()=>onSelect(d)}
+            style={{opacity:drag&&(drag.id||drag.name)===(d.id||d.name)?.4:1}}>
             <div className="card-name">{d.name}</div>
             <div className="card-meta"><span>{d.community||d.industry||"—"}</span><span>W:{d.warmth_score||0}</span></div>
             <div className="card-tags"><span className={"cell-tier "+(TIERS[d.tier]?.cls||"t3")} style={{fontSize:10,padding:"1px 5px"}}>{TIERS[d.tier]?.label||"T3"}</span><span className="ai-badge" style={{fontSize:9}}>E:{eng}</span></div>
             <div className="card-amount">Ask: {fmt$(aiAsk(d))}</div>
           </div>)})}
-        {col.donors.length===0&&<div style={{padding:20,textAlign:"center",color:"var(--text4)",fontSize:11}}>Empty</div>}
+        {col.donors.length===0&&<div style={{padding:20,textAlign:"center",color:"var(--text4)",fontSize:11}}>{dropTarget===col.id&&drag?"Drop here":"Empty"}</div>}
       </div>
     </div>)}
   </div>);
