@@ -1324,7 +1324,7 @@ function ListView({donors,acts,onSelect,selId,onStage,bulkSel,onToggleBulk}){
         <th>Stage</th>
         <th onClick={()=>sort("warmth_score")}>Warmth<SA c="warmth_score"/></th>
         <th onClick={()=>sort("engagement")}>Engage<SA c="engagement"/></th>
-        <th>AI Tmpl</th>
+        <th>Last</th>
       </tr></thead><tbody>
         {list.map(d=>{const eng=aiScore(d,acts);const tmpl=TEMPLATES.find(t=>t.id===aiTemplate(d));const stg=STAGES.find(s=>s.id===(d.pipeline_stage||"not_started"));const w=parseInt(d.warmth_score||0);
         const did=d.id||d.name;const isBulked=bulkSel?.has(did);
@@ -1338,7 +1338,13 @@ function ListView({donors,acts,onSelect,selId,onStage,bulkSel,onToggleBulk}){
           <td onClick={e=>e.stopPropagation()}><select className="form-select" value={d.pipeline_stage||"not_started"} onChange={e=>onStage(did,e.target.value)} style={{padding:"3px 6px",fontSize:11,fontWeight:600,background:(stg?.color||"#52525b")+"15",color:stg?.color,border:"1px solid "+(stg?.color||"#52525b")+"40",borderRadius:6,cursor:"pointer",minWidth:100}}>{STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select></td>
           <td><div className="cell-warmth"><div className="warmth-bar"><div className="warmth-fill" style={{width:`${w*10}%`,background:w>=7?"var(--green)":w>=4?"var(--accent)":"var(--blue)"}}/></div><span style={{fontSize:11,fontWeight:600}}>{w}</span></div></td>
           <td><div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:32,height:4,background:"var(--surface3)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${eng}%`,height:"100%",borderRadius:2,background:eng>=70?"var(--green)":eng>=40?"var(--accent)":"var(--blue)"}}/></div><span style={{fontSize:11,fontWeight:600}}>{eng}</span></div></td>
-          <td><span className="ai-badge">⚡{tmpl?.name?.split(" ")[0]}</span></td>
+          <td>{(()=>{
+            const donorActs=acts.filter(a=>a.did===did);
+            if(!donorActs.length)return<span style={{fontSize:10,color:"var(--red)",fontWeight:600}}>Never</span>;
+            const latest=donorActs.sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+            const days=Math.round((Date.now()-new Date(latest.date))/864e5);
+            return<span style={{fontSize:10,color:days>30?"var(--red)":days>14?"var(--accent)":"var(--green)",fontWeight:600}}>{days===0?"Today":days===1?"1d":days+"d"}</span>;
+          })()}</td>
         </tr>)})}
       </tbody></table>
       {list.length===0&&<div className="empty-state"><div className="empty-icon">👥</div><h3>No donors found</h3><p>Adjust filters</p></div>}
@@ -1417,6 +1423,21 @@ function DonorDetail({donor:d,acts,notes,onClose,onNote,onStage,onCompose,onEdit
   const stg=STAGES.find(s=>s.id===(d.pipeline_stage||"not_started"));const w=parseInt(d.warmth_score||d.warmth||0);
   const da=acts.filter(a=>a.did===(d.id||d.name));const dn=notes.filter(n=>n.did===(d.id||d.name));
   const addN=()=>{if(!nt.trim())return;onNote({did:d.id||d.name,text:nt,date:new Date().toISOString()});setNt("")};
+  // Profile completeness — which fields are filled
+  const profileFields=[
+    {key:"email",label:"Email",filled:!!d.email},
+    {key:"phone",label:"Phone",filled:!!d.phone},
+    {key:"city",label:"City",filled:!!d.city},
+    {key:"community",label:"Community",filled:!!(d.community||d.synagogue)},
+    {key:"net_worth",label:"Net Worth",filled:!!d.net_worth},
+    {key:"annual_giving",label:"Giving History",filled:!!d.annual_giving},
+    {key:"focus_areas",label:"Focus Areas",filled:!!(d.focus_areas?.length)},
+    {key:"warmth_score",label:"Warmth Score",filled:w>0},
+    {key:"custom_hook",label:"Custom Hook",filled:!!d.custom_hook},
+    {key:"industry",label:"Industry",filled:!!d.industry},
+  ];
+  const profilePct=Math.round(profileFields.filter(f=>f.filled).length/profileFields.length*100);
+  const profileColor=profilePct>=80?"var(--green)":profilePct>=50?"var(--accent)":"var(--red)";
   return(<>
     <div className="detail-overlay" onClick={onClose}/>
     <div className="detail-panel">
@@ -1475,6 +1496,22 @@ function DonorDetail({donor:d,acts,notes,onClose,onNote,onStage,onCompose,onEdit
       <div className="detail-body">
         {showLogger&&<ActivityLogger donor={d} onLog={(act,rem)=>onLogActivity(act,rem)} onClose={()=>setShowLogger(false)}/>}
         {tab==="overview"&&<>
+          {/* Profile Completeness */}
+          {profilePct<100&&<div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:12,marginBottom:12}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+              <span style={{fontSize:11,fontWeight:700,color:"var(--text3)"}}>Profile Completeness</span>
+              <span style={{fontSize:12,fontWeight:800,color:profileColor}}>{profilePct}%</span>
+            </div>
+            <div style={{height:4,background:"var(--surface2)",borderRadius:2,overflow:"hidden",marginBottom:6}}>
+              <div style={{width:`${profilePct}%`,height:"100%",background:profileColor,borderRadius:2,transition:"width .3s"}}/>
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+              {profileFields.filter(f=>!f.filled).map(f=>(
+                <span key={f.key} style={{fontSize:9,padding:"1px 6px",borderRadius:10,background:"var(--red-soft)",color:"var(--red)",fontWeight:600}}>+ {f.label}</span>
+              ))}
+            </div>
+          </div>}
+
           <div style={{background:"var(--purple-soft)",border:"1px solid rgba(139,92,246,0.2)",borderRadius:"var(--radius)",padding:12,marginBottom:16}}>
             <div style={{fontSize:11,fontWeight:700,color:"var(--purple)",marginBottom:8}}>⚡ AI INSIGHTS</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
