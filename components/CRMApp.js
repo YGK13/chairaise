@@ -1287,7 +1287,7 @@ function Dashboard({donors,acts,deals,reminders,outreachLog,session,useDB,dbLoad
 // ============================================================
 // COMPONENT: ListView
 // ============================================================
-function ListView({donors,acts,onSelect,selId,onStage,bulkSel,onToggleBulk}){
+function ListView({donors,acts,onSelect,selId,onStage,bulkSel,onToggleBulk,onCompose}){
   const[sk,setSk]=useState("name");const[sd,setSd]=useState("asc");
   const[ft,setFt]=useState({tier:"all",stage:"all",q:""});
   const sort=(k)=>{if(sk===k)setSd(d=>d==="asc"?"desc":"asc");else{setSk(k);setSd("asc")}};
@@ -1328,7 +1328,7 @@ function ListView({donors,acts,onSelect,selId,onStage,bulkSel,onToggleBulk}){
       </tr></thead><tbody>
         {list.map(d=>{const eng=aiScore(d,acts);const tmpl=TEMPLATES.find(t=>t.id===aiTemplate(d));const stg=STAGES.find(s=>s.id===(d.pipeline_stage||"not_started"));const w=parseInt(d.warmth_score||0);
         const did=d.id||d.name;const isBulked=bulkSel?.has(did);
-        return(<tr key={did} onClick={()=>onSelect(d)} className={(selId===did?"selected":"")+(isBulked?" selected":"")}>
+        return(<tr key={did} onClick={()=>onSelect(d)} onDoubleClick={e=>{e.stopPropagation();if(onCompose)onCompose(d)}} className={(selId===did?"selected":"")+(isBulked?" selected":"")} title="Click to view • Double-click to compose email">
           <td style={{padding:"10px 6px"}} onClick={e=>e.stopPropagation()}><div className={"row-check"+(isBulked?" checked":"")} onClick={()=>onToggleBulk(did)}>{isBulked?"✓":""}</div></td>
           <td><div className="cell-name"><div className="avatar" style={{background:d.tier==="Tier 1"?"var(--accent-soft)":"var(--surface3)",color:d.tier==="Tier 1"?"var(--accent)":"var(--text3)"}}>{initials(d.name)}</div><div><div>{d.name}</div><div style={{fontSize:11,color:"var(--text3)"}}>{d.city||""}</div></div></div></td>
           <td><span className={"cell-tier "+(TIERS[d.tier]?.cls||"t3")}>{TIERS[d.tier]?.label||"T3"}</span></td>
@@ -3425,7 +3425,7 @@ function AppInner(){
       {/* CONTENT AREA */}
       <div className="content-area">
         {page==="dashboard"&&<Dashboard donors={donors} acts={acts} deals={deals} reminders={reminders} outreachLog={outreachLog} session={session}/>}
-        {page==="donors"&&sub==="list"&&<ListView donors={donors} acts={acts} onSelect={setSelD} selId={selD?.id||selD?.name} onStage={chgStage} bulkSel={bulkSel} onToggleBulk={toggleBulk}/>}
+        {page==="donors"&&sub==="list"&&<ListView donors={donors} acts={acts} onSelect={setSelD} selId={selD?.id||selD?.name} onStage={chgStage} bulkSel={bulkSel} onToggleBulk={toggleBulk} onCompose={setCompD}/>}
         {page==="donors"&&sub==="board"&&<BoardView donors={donors} acts={acts} onSelect={setSelD} onStage={chgStage}/>}
         {page==="donors"&&sub==="timeline"&&<TimelineView acts={acts} donors={donors}/>}
         {page==="network"&&<NetworkDashboard donors={donors} graphContacts={graphContacts} setGraphContacts={setGraphContacts} graphData={graphData} setGraphData={setGraphData}/>}
