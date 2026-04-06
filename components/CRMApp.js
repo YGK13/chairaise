@@ -967,15 +967,57 @@ const generateDemoData=()=>{
 };
 
 function DataLoader({onLoad}){
-  const[txt,setTxt]=useState("");const fRef=useRef();
-  const handleFile=(f)=>{const r=new FileReader();r.onload=(e)=>{try{const d=JSON.parse(e.target.result);onLoad(Array.isArray(d)?d:(d.donors||d.records||[d]))}catch(err){alert("Invalid JSON: "+err.message)}};r.readAsText(f)};
+  const[txt,setTxt]=useState("");const fRef=useRef();const[importing,setImporting]=useState(false);const[importResult,setImportResult]=useState(null);
+  const handleFile=(f)=>{
+    setImporting(true);setImportResult(null);
+    const r=new FileReader();
+    r.onload=(e)=>{
+      const text=e.target.result;
+      const isCSV=f.name.endsWith(".csv")||f.name.endsWith(".tsv");
+      if(isCSV){
+        // Parse CSV with auto-column mapping
+        const rows=parseCSV(text);
+        if(rows.length<2){setImportResult({error:"CSV needs header + data rows"});setImporting(false);return}
+        const headers=rows[0].map(h=>h.toLowerCase().trim());
+        const nameCol=headers.findIndex(h=>/^(name|full.?name|donor.?name)/.test(h));
+        const emailCol=headers.findIndex(h=>/^(email|e-?mail)/.test(h));
+        const phoneCol=headers.findIndex(h=>/^(phone|tel)/.test(h));
+        const cityCol=headers.findIndex(h=>/^(city)/.test(h));
+        const tierCol=headers.findIndex(h=>/^(tier|level|category)/.test(h));
+        const amtCol=headers.findIndex(h=>/^(amount|giving|donation|annual)/.test(h));
+        const communityCol=headers.findIndex(h=>/^(community|synagogue|shul|congregation)/.test(h));
+        if(nameCol===-1){setImportResult({error:"No 'name' column found. Headers: "+rows[0].join(", ")});setImporting(false);return}
+        const donors=rows.slice(1).map((row,i)=>{
+          const name=(row[nameCol]||"").trim();
+          if(!name)return null;
+          const d={id:Date.now()+i,name,pipeline_stage:"not_started"};
+          if(emailCol>=0&&row[emailCol])d.email=row[emailCol].trim();
+          if(phoneCol>=0&&row[phoneCol])d.phone=row[phoneCol].trim();
+          if(cityCol>=0&&row[cityCol])d.city=row[cityCol].trim();
+          if(tierCol>=0&&row[tierCol])d.tier=row[tierCol].trim().includes("1")?"Tier 1":row[tierCol].trim().includes("2")?"Tier 2":"Tier 3";
+          if(amtCol>=0&&row[amtCol])d.annual_giving=parseInt(row[amtCol].replace(/[$,₪]/g,""))||0;
+          if(communityCol>=0&&row[communityCol])d.community=row[communityCol].trim();
+          return d;
+        }).filter(Boolean);
+        setImportResult({ok:true,count:donors.length,file:f.name});
+        onLoad(donors);
+      }else{
+        try{const d=JSON.parse(text);onLoad(Array.isArray(d)?d:(d.donors||d.records||[d]))}catch(err){setImportResult({error:"Invalid JSON: "+err.message})}
+      }
+      setImporting(false);
+    };
+    r.readAsText(f);
+  };
   const loadDemo=()=>onLoad(generateDemoData());
   return(<div className="loader-overlay"><div className="loader-card">
-    <h2>⚡ ChaiRaise CRM</h2><p>Load your donor data (JSON) or try the demo.</p>
-    <div className="drop-zone" onClick={()=>fRef.current?.click()}><p>📁 Click to upload JSON file</p>
-      <input ref={fRef} type="file" accept=".json" style={{display:"none"}} onChange={e=>e.target.files[0]&&handleFile(e.target.files[0])}/></div>
+    <h2>⚡ ChaiRaise CRM</h2><p>Import your donor data or explore with demo donors.</p>
+    <div className="drop-zone" onClick={()=>fRef.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)handleFile(f)}}>
+      <p>{importing?"⏳ Importing...":"📁 Drop or click to upload (JSON or CSV)"}</p>
+      <input ref={fRef} type="file" accept=".json,.csv,.tsv" style={{display:"none"}} onChange={e=>e.target.files[0]&&handleFile(e.target.files[0])}/></div>
+    {importResult?.error&&<div style={{background:"var(--red-soft)",color:"var(--red)",padding:"8px 12px",borderRadius:6,marginTop:8,fontSize:12}}>{importResult.error}</div>}
+    {importResult?.ok&&<div style={{background:"var(--green-soft)",color:"var(--green)",padding:"8px 12px",borderRadius:6,marginTop:8,fontSize:12}}>✓ {importResult.count} donors imported from {importResult.file}</div>}
     <div style={{color:"var(--text3)",margin:"8px 0",fontSize:"11px"}}>— or paste JSON —</div>
-    <textarea className="form-textarea" value={txt} onChange={e=>setTxt(e.target.value)} placeholder='[{"name":"...","email":"..."}]' style={{minHeight:"80px"}}/>
+    <textarea className="form-textarea" value={txt} onChange={e=>setTxt(e.target.value)} placeholder='[{"name":"...","email":"...","tier":"Tier 1"}]' style={{minHeight:"80px"}}/>
     <div style={{display:"flex",gap:"8px",justifyContent:"center",marginTop:"12px"}}>
       <button className="btn btn-primary" onClick={()=>{try{const d=JSON.parse(txt);onLoad(Array.isArray(d)?d:(d.donors||d.records||[d]))}catch(e){alert("Invalid JSON")}}} disabled={!txt.trim()}>Load</button>
       <button className="btn btn-ghost" onClick={loadDemo}>Demo Data (25 Donors)</button>
@@ -1381,6 +1423,53 @@ function DonorDetail({donor:d,acts,notes,onClose,onNote,onStage,onCompose,onEdit
       <div className="detail-header"><div className="detail-avatar">{initials(d.name)}</div><div className="detail-info"><div className="detail-name">{d.name}</div><div className="detail-sub">{d.community||d.industry||"—"} • {d.city||""}</div></div>
         <button className="btn btn-ghost btn-sm" onClick={()=>onEdit(d)} title="Edit donor">✏️</button>
         <button className="btn btn-ghost btn-sm" onClick={()=>setShowLogger(!showLogger)} title="Log activity">📋</button>
+        <button className="btn btn-ghost btn-sm" onClick={()=>{
+          // Generate print-ready donor report
+          const org=getActiveOrg();
+          const report=window.open("","_blank");
+          report.document.write(`<!DOCTYPE html><html><head><title>${d.name} — Donor Report</title>
+            <style>body{font-family:Inter,system-ui,sans-serif;padding:40px;max-width:800px;margin:0 auto;color:#1a1a1a;font-size:13px;line-height:1.6}
+            h1{font-size:24px;margin-bottom:4px}h2{font-size:16px;color:#666;border-bottom:2px solid #f59e0b;padding-bottom:4px;margin-top:24px}
+            .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0}.field{padding:8px;background:#f9f9f9;border-radius:6px}
+            .label{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:#888;margin-bottom:2px}.value{font-size:14px;font-weight:600}
+            .timeline-item{padding:8px 0;border-bottom:1px solid #eee;display:flex;gap:8px}.footer{margin-top:32px;padding-top:12px;border-top:1px solid #ddd;font-size:10px;color:#999}
+            @media print{body{padding:20px}}</style></head><body>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+              <div style="width:48px;height:48px;background:#f59e0b;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;color:#fff">${initials(d.name)}</div>
+              <div><h1>${d.name}</h1><div style="color:#666">${d.community||d.industry||""} • ${d.city||""} • ${d.tier||"Tier 3"}</div></div>
+            </div>
+            <h2>Financial Profile</h2>
+            <div class="grid">
+              <div class="field"><div class="label">Net Worth</div><div class="value">${fmt$(d.net_worth)}</div></div>
+              <div class="field"><div class="label">Annual Giving</div><div class="value">${fmt$(d.annual_giving)}</div></div>
+              <div class="field"><div class="label">Giving Capacity</div><div class="value">${fmt$(d.giving_capacity||d.net_worth)}</div></div>
+              <div class="field"><div class="label">Suggested Ask</div><div class="value">${fmt$(ask)}</div></div>
+            </div>
+            <h2>Engagement</h2>
+            <div class="grid">
+              <div class="field"><div class="label">Warmth Score</div><div class="value">${w}/10</div></div>
+              <div class="field"><div class="label">Engagement Score</div><div class="value">${eng}/100</div></div>
+              <div class="field"><div class="label">Pipeline Stage</div><div class="value">${stg?.label||"Not Started"}</div></div>
+              <div class="field"><div class="label">Likelihood</div><div class="value">${lk.l}</div></div>
+            </div>
+            <h2>Contact & Affiliations</h2>
+            <div class="grid">
+              <div class="field"><div class="label">Email</div><div class="value">${d.email||"—"}</div></div>
+              <div class="field"><div class="label">Phone</div><div class="value">${d.phone||"—"}</div></div>
+              <div class="field"><div class="label">Community</div><div class="value">${d.community||"—"}</div></div>
+              <div class="field"><div class="label">School</div><div class="value">${d.school||"—"}</div></div>
+              <div class="field"><div class="label">Industry</div><div class="value">${d.industry||"—"}</div></div>
+              <div class="field"><div class="label">Foundation</div><div class="value">${d.foundation||"—"}</div></div>
+            </div>
+            ${d.focus_areas?.length?`<h2>Focus Areas</h2><div>${d.focus_areas.map(f=>`<span style="display:inline-block;padding:2px 8px;margin:2px;border-radius:12px;background:#fef3c7;font-size:11px">${f}</span>`).join("")}</div>`:""}
+            ${d.custom_hook?`<h2>Custom Hook</h2><p>${d.custom_hook}</p>`:""}
+            ${d.prior_gift_detail?`<h2>Prior Gift Detail</h2><p>${d.prior_gift_detail}</p>`:""}
+            ${da.length?`<h2>Activity Timeline (${da.length})</h2>${da.sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,10).map(a=>`<div class="timeline-item"><strong>${a.type}</strong><span>${a.summary||""}</span><span style="color:#888;margin-left:auto">${fmtD(a.date)}</span></div>`).join("")}`:""}
+            <div class="footer">Generated by ChaiRaise for ${org.name} • ${new Date().toLocaleDateString("en-US",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+          </body></html>`);
+          report.document.close();
+          setTimeout(()=>report.print(),500);
+        }} title="Print donor report">🖨️</button>
         <div className="detail-close" onClick={onClose}>✕</div></div>
       <div className="detail-tabs">{["overview","intel","donations","timeline","whatsapp","notes"].map(t=><div key={t} className={"detail-tab "+(tab===t?"active":"")} onClick={()=>setTab(t)}>{t==="whatsapp"?"💬 WhatsApp":t==="donations"?"💰 Gifts":t[0].toUpperCase()+t.slice(1)}</div>)}</div>
       <div className="detail-body">
@@ -2820,6 +2909,28 @@ function Settings({donors,acts,notes,deals,waBridge,setWaBridge}){
             ✓ JWT sessions with configurable expiry
           </div>
         </div>
+      </div>
+    </div>
+
+    {/* ===== EMAIL TEMPLATE CUSTOMIZATION ===== */}
+    <div className="settings-section">
+      <h4>✉️ Email Templates</h4>
+      <p style={{fontSize:11,color:"var(--text3)",marginBottom:8}}>Customize outreach templates for your org. Changes apply to all users.</p>
+      {(()=>{
+        const templates=getOrgTemplates();
+        return templates.map((t,i)=>(
+          <div key={t.id} style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:10,marginBottom:6}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:4}}>
+              <span style={{fontSize:12,fontWeight:700}}>{t.id}: {t.name}</span>
+              <span style={{fontSize:10,color:"var(--text4)"}}>{t.segment}</span>
+            </div>
+            <div style={{fontSize:11,color:"var(--text3)"}}>Subject: {t.subject}</div>
+            <div style={{fontSize:10,color:"var(--text4)",marginTop:2}}>Hooks: {t.hooks}</div>
+          </div>
+        ));
+      })()}
+      <div style={{fontSize:10,color:"var(--text4)",marginTop:8}}>
+        Merge fields: {"{First}"}, {"{OrgName}"}, {"{OrgMission}"}, {"{School}"}, {"{Synagogue}"}, {"{Community}"}, {"{Prior_Gift}"}, {"{Custom_Hook}"}, {"{Family}"}
       </div>
     </div>
 
