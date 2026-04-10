@@ -1521,6 +1521,21 @@ function DonorDetail({donor:d,acts,notes,onClose,onNote,onStage,onCompose,onEdit
             </div>
             <div style={{marginTop:8,fontSize:11,color:"var(--text2)"}}>Best template: <span style={{color:"var(--purple)",fontWeight:600}}>{tmpl?.name}</span></div>
           </div>
+          {/* Pipeline Progress Visualization */}
+          <div style={{marginBottom:16}}>
+            <div style={{display:"flex",gap:2,marginBottom:6}}>
+              {STAGES.map((s,i)=>{
+                const currentIdx=STAGES.findIndex(st=>st.id===(d.pipeline_stage||"not_started"));
+                const isComplete=i<=currentIdx;
+                const isCurrent=i===currentIdx;
+                return(<div key={s.id} style={{flex:1,height:6,borderRadius:3,background:isComplete?s.color:"var(--surface2)",opacity:isCurrent?1:isComplete?.7:.3,transition:"all .3s",cursor:"pointer"}} title={s.label} onClick={()=>onStage(d.id||d.name,s.id)}/>);
+              })}
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{fontSize:10,color:stg?.color,fontWeight:700}}>● {stg?.label}</span>
+              <span style={{fontSize:10,color:"var(--text4)"}}>{STAGES.findIndex(s=>s.id===(d.pipeline_stage||"not_started"))+1}/{STAGES.length}</span>
+            </div>
+          </div>
           <div style={{display:"flex",gap:8,marginBottom:16}}>
             <select className="form-select" value={d.pipeline_stage||"not_started"} onChange={e=>onStage(d.id||d.name,e.target.value)} style={{flex:1,padding:"8px 10px"}}>{STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select>
             <button className="btn btn-primary" onClick={()=>onCompose(d)}>✉️ Compose</button>
@@ -2815,8 +2830,8 @@ function IntegrationHub({donors,onImportDonors}){
 // ============================================================
 // COMPONENT: OnboardingWizard — guided setup for new orgs
 // ============================================================
-function DealsView({deals,donors,onAdd}){
-  const[show,setShow]=useState(false);const[nd,setNd]=useState({did:"",amt:"",stage:"not_started",notes:"",expected_close:""});
+function DealsView({deals,donors,campaigns,activeCampaign,onAdd}){
+  const[show,setShow]=useState(false);const[nd,setNd]=useState({did:"",amt:"",stage:"not_started",notes:"",expected_close:"",campaign:activeCampaign||"main"});
   const totalPipeline=deals.reduce((s,d)=>s+(parseInt(d.amt)||0),0);
   const committed=deals.filter(d=>d.stage==="commitment").reduce((s,d)=>s+(parseInt(d.amt)||0),0);
   return(<div className="content-scroll">
@@ -2837,15 +2852,22 @@ function DealsView({deals,donors,onAdd}){
         <div className="form-group"><label className="form-label">Ask Amount ($)</label><input className="form-input" type="number" value={nd.amt} onChange={e=>setNd(d=>({...d,amt:e.target.value}))} placeholder="50000"/></div>
         <div className="form-group"><label className="form-label">Expected Close</label><input className="form-input" type="date" value={nd.expected_close} onChange={e=>setNd(d=>({...d,expected_close:e.target.value}))}/></div>
       </div>
-      <div className="form-group"><label className="form-label">Notes</label><input className="form-input" value={nd.notes} onChange={e=>setNd(d=>({...d,notes:e.target.value}))} placeholder="Gift context, conditions, etc."/></div>
-      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button className="btn btn-ghost" onClick={()=>setShow(false)}>Cancel</button><button className="btn btn-primary" onClick={()=>{if(!nd.did||!nd.amt)return;onAdd({...nd,id:Date.now(),amt:parseInt(nd.amt),created:new Date().toISOString()});setNd({did:"",amt:"",stage:"not_started",notes:"",expected_close:""});setShow(false)}}>Create</button></div>
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12}}>
+        <div className="form-group"><label className="form-label">Notes</label><input className="form-input" value={nd.notes} onChange={e=>setNd(d=>({...d,notes:e.target.value}))} placeholder="Gift context, conditions, etc."/></div>
+        <div className="form-group"><label className="form-label">Campaign</label>
+          <select className="form-select" value={nd.campaign} onChange={e=>setNd(d=>({...d,campaign:e.target.value}))}>
+            {(campaigns||[]).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+          </select></div>
+      </div>
+      <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}><button className="btn btn-ghost" onClick={()=>setShow(false)}>Cancel</button><button className="btn btn-primary" onClick={()=>{if(!nd.did||!nd.amt)return;onAdd({...nd,id:Date.now(),amt:parseInt(nd.amt),created:new Date().toISOString()});setNd({did:"",amt:"",stage:"not_started",notes:"",expected_close:"",campaign:activeCampaign||"main"});setShow(false)}}>Create</button></div>
     </div>}
     {deals.length===0?<div className="empty-state"><div className="empty-icon">💎</div><h3>No deals yet</h3><p>Create a deal to track gift opportunities and pledges</p></div>:
-    <table className="list-table"><thead><tr><th>Donor</th><th>Amount</th><th>Stage</th><th>Expected Close</th><th>Notes</th><th>Created</th></tr></thead><tbody>
+    <table className="list-table"><thead><tr><th>Donor</th><th>Amount</th><th>Campaign</th><th>Stage</th><th>Expected Close</th><th>Notes</th><th>Created</th></tr></thead><tbody>
       {deals.sort((a,b)=>(parseInt(b.amt)||0)-(parseInt(a.amt)||0)).map(deal=>{const donor=donors.find(d=>(d.id||d.name)===deal.did);const stg=STAGES.find(s=>s.id===deal.stage);return(
         <tr key={deal.id}>
           <td><div className="cell-name"><div className="avatar" style={{background:donor?.tier==="Tier 1"?"var(--accent-soft)":"var(--surface3)",color:donor?.tier==="Tier 1"?"var(--accent)":"var(--text3)"}}>{initials(donor?.name)}</div><div><div>{donor?.name||"Unknown"}</div><div style={{fontSize:10,color:"var(--text4)"}}>{donor?.community||""}</div></div></div></td>
           <td className="cell-amount" style={{color:"var(--green)",fontSize:14,fontWeight:700}}>{fmt$(deal.amt)}</td>
+          <td style={{fontSize:11,color:"var(--text2)"}}>{(campaigns||[]).find(c=>c.id===deal.campaign)?.name||"Main"}</td>
           <td><span className="cell-stage" style={{background:(stg?.color||"#52525b")+"20",color:stg?.color}}>● {stg?.label}</span></td>
           <td style={{fontSize:12,color:deal.expected_close?"var(--text2)":"var(--text4)"}}>{deal.expected_close?fmtD(deal.expected_close):"—"}</td>
           <td style={{fontSize:12,color:"var(--text3)",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{deal.notes||"—"}</td>
@@ -3432,7 +3454,7 @@ function AppInner(){
         {page==="campaigns"&&<CampaignManager campaigns={campaigns} donors={donors} deals={deals} acts={acts} onAddCampaign={addCampaign} onUpdateCampaign={updateCampaign} activeCampaign={activeCampaign} setActiveCampaign={setActiveCampaign}/>}
         {page==="analytics"&&<AdvancedAnalytics donors={donors} acts={acts} deals={deals} campaigns={campaigns} outreachLog={outreachLog}/>}
         {page==="outreach"&&<OutreachCoach donors={donors} acts={acts} graphData={graphData} graphContacts={graphContacts} apiKey={apiKey} outreachLog={outreachLog} onLogOutreach={logOutreach}/>}
-        {page==="deals"&&<DealsView deals={deals} donors={donors} onAdd={addDeal}/>}
+        {page==="deals"&&<DealsView deals={deals} donors={donors} campaigns={campaigns} activeCampaign={activeCampaign} onAdd={addDeal}/>}
         {page==="reminders"&&<RemindersView reminders={reminders} donors={donors} onToggle={toggleReminder} onDelete={deleteReminder} onAdd={(r)=>setReminders(p=>[...p,r])}/>}
         {page==="whatsapp"&&<WhatsAppHub donors={donors} onLogActivities={a=>setActs(p=>[...p,a])}/>}
         {page==="email"&&<div className="content-scroll"><div style={{maxWidth:500,margin:"20px auto",textAlign:"center"}}><h3 style={{marginBottom:8}}>Quick Compose</h3><p style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>Select a donor to compose an AI email</p><select className="form-select" onChange={e=>{const dd=donors.find(x=>(x.id||x.name)==e.target.value);if(dd)setCompD(dd)}}><option value="">Choose donor...</option>{donors.map(dd=><option key={dd.id||dd.name} value={dd.id||dd.name}>{dd.name}</option>)}</select></div></div>}
