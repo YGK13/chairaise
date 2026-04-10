@@ -37,6 +37,22 @@ const TEMPLATES=typeof window!=="undefined"?getOrgTemplates():DEFAULT_TEMPLATES;
 const COMMUNITY_MAP=typeof window!=="undefined"?getOrgCommunityMap():DEFAULT_COMMUNITY_MAP;
 
 // ============================================================
+// SHABBAT AWARENESS — prevent sending during Shabbat/Chag
+// Uses approximate times (Friday 4pm-Saturday 10pm local time)
+// ============================================================
+const isShabbat=()=>{
+  const now=new Date();
+  const day=now.getDay(); // 0=Sun, 5=Fri, 6=Sat
+  const hour=now.getHours();
+  // Friday after 4pm
+  if(day===5&&hour>=16)return true;
+  // All day Saturday until 10pm
+  if(day===6&&hour<22)return true;
+  return false;
+};
+const SHABBAT_MSG="It's currently Shabbat. Email will be queued and sent after Shabbat ends (Saturday night).";
+
+// ============================================================
 // TOAST / NOTIFICATION SYSTEM — global notifications
 // ============================================================
 const ToastContext=createContext({addToast:()=>{},toasts:[]});
@@ -1440,7 +1456,7 @@ function TimelineView({acts,donors}){
 // ============================================================
 // COMPONENT: DonorDetail (slide-out)
 // ============================================================
-function DonorDetail({donor:d,acts,notes,onClose,onNote,onStage,onCompose,onEdit,onLogActivity}){
+function DonorDetail({donor:d,acts,notes,donors:allDonors,onClose,onNote,onStage,onCompose,onEdit,onLogActivity}){
   const[tab,setTab]=useState("overview");const[nt,setNt]=useState("");
   const[showLogger,setShowLogger]=useState(false);
   const[donations,setDonations]=useState([]);const[donationsLoading,setDonationsLoading]=useState(false);
@@ -1592,6 +1608,35 @@ function DonorDetail({donor:d,acts,notes,onClose,onNote,onStage,onCompose,onEdit
           </div>
           {(d.connector_paths||[]).length>0&&<><div style={{fontSize:11,fontWeight:600,color:"var(--text3)",textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>Connector Paths</div>
             {d.connector_paths.map((c,i)=><div className="connector-card" key={i}><div className="cn-name">{c.name}</div><div className="cn-role">{c.role}</div><div className="cn-strength">Strength: {c.strength||c.feasibility||"Unknown"}</div></div>)}</>}
+
+          {/* Family / Household Members */}
+          {(()=>{
+            const familyName=d.family_name||d.name?.split(" ").pop();
+            if(!familyName||!allDonors)return null;
+            const familyMembers=(allDonors||[]).filter(fd=>{
+              if((fd.id||fd.name)===(d.id||d.name))return false;
+              if(fd.family_name&&fd.family_name===d.family_name)return true;
+              const fLast=fd.name?.split(" ").pop()?.toLowerCase();
+              const dLast=d.name?.split(" ").pop()?.toLowerCase();
+              return fLast&&dLast&&fLast===dLast&&fLast.length>2&&(fd.city===d.city||fd.community===d.community);
+            });
+            if(!familyMembers.length)return null;
+            const familyTotal=familyMembers.reduce((s,f)=>s+(parseInt(f.annual_giving||0)),0)+parseInt(d.annual_giving||0);
+            return(<div style={{marginTop:12}}>
+              <div style={{fontSize:11,fontWeight:600,color:"var(--text3)",textTransform:"uppercase",letterSpacing:.5,marginBottom:8}}>👨‍👩‍👧‍👦 Family / Household ({familyMembers.length+1} members, {fmt$(familyTotal)} total giving)</div>
+              {familyMembers.map(f=>(
+                <div key={f.id||f.name} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0",borderBottom:"1px solid var(--border)"}}>
+                  <div className="avatar" style={{width:24,height:24,fontSize:9}}>{initials(f.name)}</div>
+                  <div style={{flex:1}}>
+                    <span style={{fontSize:12,fontWeight:600}}>{f.name}</span>
+                    <span style={{fontSize:10,color:"var(--text4)",marginLeft:6}}>{f.community||f.city||""}</span>
+                  </div>
+                  <span className={"cell-tier "+(TIERS[f.tier]?.cls||"t3")} style={{fontSize:9}}>{TIERS[f.tier]?.label||"T3"}</span>
+                  <span style={{fontSize:11,color:"var(--green)",fontWeight:600}}>{fmt$(f.annual_giving)}</span>
+                </div>
+              ))}
+            </div>);
+          })()}
         </>}
         {tab==="intel"&&<div className="intel-grid">
           <div className="intel-card"><div className="il">Industry</div><div className="iv">{d.industry||"—"}</div></div>
@@ -1703,13 +1748,19 @@ function EmailComposer({donor:d,apiKey,pplxKey,aiProvider,onClose,onSend}){
       <div className="form-group"><label className="form-label">Subject</label><input className="form-input" value={subj} onChange={e=>setSubj(e.target.value)} placeholder="Subject..."/></div>
       <div className="form-group"><label className="form-label">Body</label><textarea className="form-textarea" value={body} onChange={e=>setBody(e.target.value)} placeholder="AI-generated or type manually..." style={{minHeight:200}}/></div>
     </div>
+    {isShabbat()&&<div style={{padding:"8px 12px",background:"rgba(139,92,246,0.12)",border:"1px solid rgba(139,92,246,0.2)",borderRadius:6,margin:"0 16px 12px",fontSize:12,color:"var(--purple)",display:"flex",alignItems:"center",gap:8}}>
+      <span>✡️</span> {SHABBAT_MSG}
+    </div>}
     <div className="modal-footer">
       <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
       <button className="btn btn-ghost" onClick={()=>{
         navigator.clipboard.writeText(`Subject: ${subj}\n\n${body}`);
         alert("Email copied to clipboard! Paste into Gmail or your email client.");
       }} disabled={!body} title="Copy email text to clipboard">📋 Copy</button>
-      {d.email&&<button className="btn btn-primary" onClick={()=>{onSend({did:d.id||d.name,tmpl,subj,body,recipientEmail:d.email,date:new Date().toISOString()});onClose()}} disabled={!subj||!body}>✉️ Send to {d.email.split("@")[0]}</button>}
+      {d.email&&<button className="btn btn-primary" onClick={()=>{
+        if(isShabbat()&&!confirm("It's currently Shabbat. Are you sure you want to send now?")){return}
+        onSend({did:d.id||d.name,tmpl,subj,body,recipientEmail:d.email,date:new Date().toISOString()});onClose();
+      }} disabled={!subj||!body}>✉️ Send to {d.email.split("@")[0]}</button>}
       <button className={d.email?"btn btn-ghost":"btn btn-primary"} onClick={()=>{onSend({did:d.id||d.name,tmpl,subj,body,date:new Date().toISOString()});onClose()}} disabled={!subj||!body}>{d.email?"Save Draft":"Save Draft & Log"}</button>
     </div>
   </div></div>);
@@ -3507,7 +3558,7 @@ function AppInner(){
     </main>
 
     {/* DETAIL PANEL — now with Edit and Activity Logger */}
-    {selD&&<DonorDetail donor={selD} acts={acts} notes={notes} onClose={()=>setSelD(null)} onNote={addNote} onStage={chgStage} onCompose={d=>{setCompD(d)}} onEdit={d=>setDonorForm({donor:d})} onLogActivity={logActivity}/>}
+    {selD&&<DonorDetail donor={selD} acts={acts} notes={notes} donors={donors} onClose={()=>setSelD(null)} onNote={addNote} onStage={chgStage} onCompose={d=>{setCompD(d)}} onEdit={d=>setDonorForm({donor:d})} onLogActivity={logActivity}/>}
 
     {/* EMAIL MODAL */}
     {compD&&<EmailComposer donor={compD} apiKey={apiKey} pplxKey={pplxKey} aiProvider={aiProvider} onClose={()=>setCompD(null)} onSend={sendEmail}/>}
