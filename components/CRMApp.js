@@ -1084,6 +1084,28 @@ function Dashboard({donors,acts,deals,reminders,outreachLog,session,useDB,dbLoad
       {overdueCount>0&&<div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 12px",background:"var(--red-soft)",borderRadius:"var(--radius)",fontSize:12,fontWeight:600,color:"var(--red)"}}><span>⚠️</span>{overdueCount} overdue follow-up{overdueCount>1?"s":""}</div>}
     </div>}
 
+    {/* Jewish Calendar Campaign Advisor */}
+    {(()=>{
+      // Key fundraising dates with campaign advice
+      const now=new Date();const m=now.getMonth()+1;const d=now.getDate();
+      const windows=[
+        {months:[8,9],label:"High Holiday Season",icon:"🕍",tip:"Peak giving window. Send appeals 2-3 weeks before Rosh Hashanah. Follow up between RH and YK.",color:"var(--accent)"},
+        {months:[11,12],label:"Year-End Giving",icon:"📅",tip:"US tax year deadline. Send final appeals by Dec 15. DAF distributions peak now.",color:"var(--green)"},
+        {months:[2,3],label:"Purim / Pre-Pesach",icon:"✡️",tip:"Matanot la'evyonim season. Community giving peaks. Good time for chesed org campaigns.",color:"var(--purple)"},
+        {months:[5],label:"Israel Independence",icon:"🇮🇱",tip:"Yom Ha'atzmaut giving window. Strong for Israel-based orgs. Plan events 2 weeks ahead.",color:"var(--blue)"},
+        {months:[6],label:"End of School Year",icon:"🎓",tip:"Day school annual campaigns close. Graduation giving. Plan summer cultivation.",color:"var(--cyan)"},
+      ];
+      const active=windows.find(w=>w.months.includes(m));
+      if(!active)return null;
+      return(<div style={{marginBottom:12,padding:"10px 14px",background:active.color+"10",border:"1px solid "+active.color+"30",borderRadius:"var(--radius)",display:"flex",alignItems:"center",gap:10}}>
+        <span style={{fontSize:20}}>{active.icon}</span>
+        <div style={{flex:1}}>
+          <span style={{fontSize:12,fontWeight:700,color:active.color}}>{active.label}</span>
+          <span style={{fontSize:11,color:"var(--text2)",marginLeft:8}}>{active.tip}</span>
+        </div>
+      </div>);
+    })()}
+
     {/* KPI Velocity Metrics */}
     <div className="kpi-grid">
       <div className="kpi-card"><div className="kpi-val">{donors.length}</div><div className="kpi-lbl">Total Donors</div><div className="kpi-delta up">{donors.filter(d=>d.email).length} w/ email</div></div>
