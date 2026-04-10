@@ -1289,13 +1289,18 @@ function Dashboard({donors,acts,deals,reminders,outreachLog,session,useDB,dbLoad
 // ============================================================
 function ListView({donors,acts,onSelect,selId,onStage,bulkSel,onToggleBulk,onCompose}){
   const[sk,setSk]=useState("name");const[sd,setSd]=useState("asc");
-  const[ft,setFt]=useState({tier:"all",stage:"all",q:""});
+  const[ft,setFt]=useState({tier:"all",stage:"all",q:"",quick:""});
   const sort=(k)=>{if(sk===k)setSd(d=>d==="asc"?"desc":"asc");else{setSk(k);setSd("asc")}};
   const list=useMemo(()=>{
     let l=[...donors];
     if(ft.tier!=="all")l=l.filter(d=>d.tier===ft.tier);
     if(ft.stage!=="all")l=l.filter(d=>(d.pipeline_stage||"not_started")===ft.stage);
     if(ft.q){const q=ft.q.toLowerCase();l=l.filter(d=>[d.name,d.community,d.industry,d.city,d.email].some(v=>(v||"").toLowerCase().includes(q)));}
+    if(ft.quick==="needs_attention")l=l.filter(d=>{const si=STAGES.findIndex(s=>s.id===(d.pipeline_stage||"not_started"));if(si<1)return false;const da=acts.filter(a=>a.did===(d.id||d.name));if(!da.length)return true;const latest=da.sort((a,b)=>new Date(b.date)-new Date(a.date))[0];return(Date.now()-new Date(latest.date))/864e5>14});
+    if(ft.quick==="hot")l=l.filter(d=>parseInt(d.warmth_score||0)>=7);
+    if(ft.quick==="no_email")l=l.filter(d=>!d.email);
+    if(ft.quick==="never_contacted")l=l.filter(d=>!acts.some(a=>a.did===(d.id||d.name)));
+    if(ft.quick==="high_value")l=l.filter(d=>parseInt(d.net_worth||0)>=1000000);
     l.sort((a,b)=>{let va=a[sk],vb=b[sk];if(["net_worth","annual_giving","warmth_score"].includes(sk)){va=parseInt(va||0);vb=parseInt(vb||0);}if(sk==="engagement"){va=aiScore(a,acts);vb=aiScore(b,acts);}return va<vb?(sd==="asc"?-1:1):va>vb?(sd==="asc"?1:-1):0;});
     return l;
   },[donors,ft,sk,sd,acts]);
@@ -1305,6 +1310,14 @@ function ListView({donors,acts,onSelect,selId,onStage,bulkSel,onToggleBulk,onCom
       <input className="form-input" placeholder="Search..." value={ft.q} onChange={e=>setFt(f=>({...f,q:e.target.value}))} style={{maxWidth:220,padding:"6px 10px"}}/>
       <select className="form-select" value={ft.tier} onChange={e=>setFt(f=>({...f,tier:e.target.value}))} style={{width:110,padding:"6px 10px"}}><option value="all">All Tiers</option><option value="Tier 1">Tier 1</option><option value="Tier 2">Tier 2</option><option value="Tier 3">Tier 3</option></select>
       <select className="form-select" value={ft.stage} onChange={e=>setFt(f=>({...f,stage:e.target.value}))} style={{width:150,padding:"6px 10px"}}><option value="all">All Stages</option>{STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select>
+      <select className="form-select" value={ft.quick||""} onChange={e=>{const v=e.target.value;setFt(f=>({...f,quick:v}))}} style={{width:140,padding:"6px 10px",fontSize:11}}>
+        <option value="">Quick Filters</option>
+        <option value="needs_attention">🚨 Needs Attention</option>
+        <option value="hot">🔥 Hot (W≥7)</option>
+        <option value="no_email">📭 No Email</option>
+        <option value="never_contacted">👻 Never Contacted</option>
+        <option value="high_value">💎 High Value ($1M+)</option>
+      </select>
       <div style={{flex:1}}/>
       <button className="btn btn-ghost btn-sm" onClick={()=>{
         const cols=DONOR_FIELDS.map(f=>({key:f.key,label:f.label}));
