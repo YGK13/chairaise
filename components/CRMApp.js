@@ -126,6 +126,26 @@ function NotificationBell({reminders,donors,outreachLog,acts}){
       notifs.push({id:"pos_"+e.date+e.donorId,type:"positive",icon:"🎉",iconBg:"var(--green-soft)",iconColor:"var(--green)",
         title:"Positive Response",msg:`${d?.name||"Unknown"} responded positively via ${e.channel}`,time:e.date,unread:false});
     });
+
+    // Yahrzeit reminders — donors with upcoming yahrzeit dates (within 14 days)
+    donors.filter(d=>d.yahrzeit_date).forEach(d=>{
+      try{
+        const parts=d.yahrzeit_date.split(/[-/]/);
+        if(parts.length<2)return;
+        const yMonth=parseInt(parts[0])||parseInt(parts[1]);
+        const yDay=parseInt(parts[1])||parseInt(parts[0]);
+        const thisYear=new Date().getFullYear();
+        const yDate=new Date(thisYear,yMonth-1,yDay);
+        if(yDate<new Date())yDate.setFullYear(thisYear+1); // Next occurrence
+        const daysUntil=Math.round((yDate-Date.now())/864e5);
+        if(daysUntil>=0&&daysUntil<=14){
+          notifs.push({id:"yahr_"+d.id,type:"yahrzeit",icon:"🕯️",iconBg:"rgba(139,92,246,0.12)",iconColor:"var(--purple)",
+            title:`Yahrzeit — ${daysUntil===0?"Today":daysUntil+"d"}`,
+            msg:`${d.name}: In memory of ${d.yahrzeit_name||"loved one"} (${d.yahrzeit_date})`,
+            time:yDate.toISOString().slice(0,10),unread:daysUntil<=3});
+        }
+      }catch{}
+    });
     return notifs.sort((a,b)=>a.unread===b.unread?0:a.unread?-1:1);
   },[reminders,donors,acts,outreachLog]);
   const unreadCount=notifications.filter(n=>n.unread).length;
