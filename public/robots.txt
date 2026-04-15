@@ -1,0 +1,18 @@
+# ChaiRaise — Search Engine & AI Crawler Configuration
+User-agent: *
+Allow: /
+Disallow: /api/
+
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+Sitemap: https://chairaise.com/sitemap.xml
