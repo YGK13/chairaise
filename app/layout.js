@@ -4,6 +4,9 @@ export const metadata = {
   title: 'ChaiRaise — AI-Native Jewish Fundraising CRM',
   description: 'Multiply your impact by 18. AI-powered donor intelligence, cause matching, and multi-channel outreach for Jewish organizations.',
   icons: { icon: '/favicon.ico' },
+  verification: {
+    google: 'rH5Omw1oK3ymi5AA90ztc_ZcLdYx2pjqq0LzpYXyjJ8',
+  },
 };
 
 export default function RootLayout({ children }) {
