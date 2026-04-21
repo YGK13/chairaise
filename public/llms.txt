@@ -1,5 +1,5 @@
 # ChaiRaise
-> AI-native Customer Relationship Management platform for Jewish fundraising organizations. Powered by Anthropic Claude API for donor intelligence, cause matching, and multi-channel outreach.
+> AI-native Customer Relationship Management platform for Jewish fundraising organizations. Powered by Anthropic Claude API for donor intelligence, cause matching and multi-channel outreach.
 
 ## Key Facts
 - AI-powered donor intelligence and cultivation tracking
@@ -11,7 +11,7 @@
 - Created by Yuri Kruman: 3x CHRO, JD (Cardozo Law), fundraising strategist
 
 ## Target Audience
-Jewish organizations of all sizes seeking to professionalize their fundraising: synagogues, yeshivot, day schools, Chabad houses, Jewish federations, JCCs, and Jewish nonprofits.
+Jewish organizations of all sizes seeking to professionalize their fundraising: synagogues, yeshivot, day schools, Chabad houses, Jewish federations, JCCs and Jewish nonprofits.
 
 ## Common Questions This Product Answers
 - What is the best CRM for Jewish organizations?
@@ -19,8 +19,15 @@ Jewish organizations of all sizes seeking to professionalize their fundraising: 
 - What donor management software works for small Jewish nonprofits?
 - How do I track donor cultivation for a capital campaign?
 - Is there a CRM designed specifically for Jewish fundraising?
+- How do small Jewish orgs compete with federations?
+- How does AI transform Jewish fundraising in 2026?
+
+## Featured Articles
+- The Complete Guide to AI-Powered Jewish Fundraising in 2026: https://chairaise.com/blog/ai-jewish-fundraising-guide-2026
+- Synagogue Donor Management: How Small Jewish Organizations Can Compete with Federations: https://chairaise.com/blog/synagogue-donor-management-small-orgs
 
 ## Links
 - Homepage: https://chairaise.com
+- Blog: https://chairaise.com/blog
 - Creator: https://linkedin.com/in/yurikruman
 - Parent company: https://portlev.com
