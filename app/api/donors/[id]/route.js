@@ -3,14 +3,33 @@
 // GET    /api/donors/[id] — Get one donor
 // PATCH  /api/donors/[id] — Update donor fields
 // DELETE /api/donors/[id] — Remove donor
+//
+// Every handler resolves the donor's org and verifies the caller has access to
+// that org before reading or mutating — closing the IDOR where any id could be
+// read/edited/deleted across tenants.
 // ============================================================
 import { getDb } from "@/lib/db";
+import { auth } from "@/lib/auth";
+import { denyIfNoOrgAccess } from "@/lib/authz";
+
+// Fetch a donor's org_id (and existence) for the access check.
+async function donorOrg(sql, id) {
+  const [row] = await sql`SELECT org_id FROM donors WHERE id = ${id}`;
+  return row?.org_id ?? null;
+}
 
 // ---- GET: Single donor by ID ----
 export async function GET(req, { params }) {
   try {
     const { id } = await params;
+    const session = await auth();
     const sql = getDb();
+
+    const orgId = await donorOrg(sql, id);
+    if (orgId === null) return Response.json({ error: "Donor not found" }, { status: 404 });
+    const denied = await denyIfNoOrgAccess(session, orgId);
+    if (denied) return denied;
+
     const [donor] = await sql`SELECT * FROM donors WHERE id = ${id}`;
     if (!donor) return Response.json({ error: "Donor not found" }, { status: 404 });
     return Response.json({ donor });
@@ -23,8 +42,14 @@ export async function GET(req, { params }) {
 export async function PATCH(req, { params }) {
   try {
     const { id } = await params;
+    const session = await auth();
     const body = await req.json();
     const sql = getDb();
+
+    const orgId = await donorOrg(sql, id);
+    if (orgId === null) return Response.json({ error: "Donor not found" }, { status: 404 });
+    const denied = await denyIfNoOrgAccess(session, orgId);
+    if (denied) return denied;
 
     // Build dynamic SET clause from provided fields
     // Only update fields that are explicitly provided
@@ -72,7 +97,14 @@ export async function PATCH(req, { params }) {
 export async function DELETE(req, { params }) {
   try {
     const { id } = await params;
+    const session = await auth();
     const sql = getDb();
+
+    const orgId = await donorOrg(sql, id);
+    if (orgId === null) return Response.json({ error: "Donor not found" }, { status: 404 });
+    const denied = await denyIfNoOrgAccess(session, orgId);
+    if (denied) return denied;
+
     const [donor] = await sql`DELETE FROM donors WHERE id = ${id} RETURNING id, name`;
     if (!donor) return Response.json({ error: "Donor not found" }, { status: 404 });
     return Response.json({ deleted: donor });

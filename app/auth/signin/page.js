@@ -179,7 +179,8 @@ function SignInPage() {
         </form>
 
         <p style={{ fontSize: 10, color: "#52525b", textAlign: "center", marginTop: 8, marginBottom: 16 }}>
-          New here? Any email + password (6+ chars) creates your account instantly.
+          New here? Your email + a password (6+ chars) creates your account instantly.
+          Returning? Use the same password. Org owners sign in with Google.
         </p>
 
         {/* ===== SOCIAL LOGIN ===== */}

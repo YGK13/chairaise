@@ -5,10 +5,47 @@
 // ============================================================
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
+import { upsertSubscription } from "@/lib/db";
 
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
+
+// Convert a Stripe unix timestamp (seconds) to a JS Date, or null.
+const toDate = (unix) => (unix ? new Date(unix * 1000) : null);
+
+// Resolve the customer email for a subscription event. Subscription objects
+// carry only the customer id, so we retrieve the customer to get the email.
+async function emailForSubscription(subscription) {
+  if (subscription.customer_email) return subscription.customer_email;
+  try {
+    const customer = await stripe.customers.retrieve(subscription.customer);
+    return customer?.email || null;
+  } catch (e) {
+    console.error("[Billing] Could not retrieve customer email:", e.message);
+    return null;
+  }
+}
+
+// Persist a Stripe subscription object to our subscriptions table.
+async function persistSubscription(subscription, emailOverride) {
+  const email = emailOverride || (await emailForSubscription(subscription));
+  if (!email) {
+    console.error("[Billing] No email for subscription", subscription.id);
+    return;
+  }
+  await upsertSubscription({
+    email,
+    org_id: subscription.metadata?.chairaise_org_id || "",
+    stripe_customer_id: subscription.customer || "",
+    stripe_subscription_id: subscription.id || "",
+    plan: subscription.metadata?.chairaise_plan || "pro",
+    status: subscription.status || "active",
+    current_period_end: toDate(subscription.current_period_end),
+    trial_end: toDate(subscription.trial_end),
+    cancel_at_period_end: !!subscription.cancel_at_period_end,
+  });
+}
 
 export async function POST(req) {
   if (!stripe) {
@@ -36,38 +73,59 @@ export async function POST(req) {
     }
   }
 
-  // Handle the event
-  switch (event.type) {
-    case "checkout.session.completed": {
-      const session = event.data.object;
-      console.log(`[Billing] Checkout completed for ${session.customer_email}, org: ${session.metadata?.chairaise_org_id}`);
-      // In production: update org's plan in database
-      break;
-    }
+  // Handle the event. Persistence is wrapped so a DB hiccup returns 500 and
+  // Stripe retries, rather than silently dropping a billing state change.
+  try {
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object;
+        const email = session.customer_email || session.customer_details?.email;
+        console.log(`[Billing] Checkout completed for ${email}, org: ${session.metadata?.chairaise_org_id}`);
+        // Retrieve the full subscription so we capture status + period dates.
+        if (session.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(session.subscription);
+          // Carry the checkout org id onto the subscription metadata if missing.
+          if (!subscription.metadata?.chairaise_org_id && session.metadata?.chairaise_org_id) {
+            subscription.metadata = { ...subscription.metadata, chairaise_org_id: session.metadata.chairaise_org_id };
+          }
+          await persistSubscription(subscription, email);
+        }
+        break;
+      }
 
-    case "customer.subscription.updated": {
-      const subscription = event.data.object;
-      console.log(`[Billing] Subscription ${subscription.id} updated: status=${subscription.status}`);
-      break;
-    }
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
+        const subscription = event.data.object;
+        console.log(`[Billing] Subscription ${subscription.id} ${event.type.split(".").pop()}: status=${subscription.status}`);
+        await persistSubscription(subscription);
+        break;
+      }
 
-    case "customer.subscription.deleted": {
-      const subscription = event.data.object;
-      console.log(`[Billing] Subscription ${subscription.id} cancelled`);
-      // In production: downgrade org to Starter plan in database
-      break;
-    }
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object;
+        console.log(`[Billing] Subscription ${subscription.id} cancelled`);
+        // Mark canceled so resolvePlan() drops the user back to Starter.
+        await persistSubscription({ ...subscription, status: "canceled" });
+        break;
+      }
 
-    case "invoice.payment_failed": {
-      const invoice = event.data.object;
-      console.log(`[Billing] Payment failed for customer ${invoice.customer}`);
-      // In production: send notification to org admin
-      break;
-    }
+      case "invoice.payment_failed": {
+        const invoice = event.data.object;
+        console.log(`[Billing] Payment failed for customer ${invoice.customer}`);
+        if (invoice.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+          await persistSubscription(subscription);
+        }
+        break;
+      }
 
-    default:
-      // Unhandled event type — log but don't error
-      console.log(`[Billing] Unhandled event type: ${event.type}`);
+      default:
+        // Unhandled event type — log but don't error
+        console.log(`[Billing] Unhandled event type: ${event.type}`);
+    }
+  } catch (err) {
+    console.error(`[Billing] Failed to process ${event.type}:`, err.message);
+    return NextResponse.json({ error: "Processing failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

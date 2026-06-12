@@ -6,11 +6,26 @@
 import Stripe from "stripe";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
+import { isOwnerEmail, resolvePlan, planMeta } from "@/lib/plan";
+import { getSubscriptionByEmail } from "@/lib/db";
 
 // Only initialize Stripe if the key exists (graceful degradation)
 const stripe = process.env.STRIPE_SECRET_KEY
   ? new Stripe(process.env.STRIPE_SECRET_KEY)
   : null;
+
+// Shape a billing status payload the client can trust to render entitlements.
+function statusPayload(planId, extra = {}) {
+  const meta = planMeta(planId);
+  return {
+    plan: planId,
+    label: meta.label,
+    limits: meta.limits,
+    features: meta.features,
+    status: "active",
+    ...extra,
+  };
+}
 
 // ============================================================
 // POST — Create a Stripe Checkout Session for Pro plan upgrade
@@ -28,6 +43,14 @@ export async function POST(req) {
   const session = await auth();
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
+  // Owner accounts already have full, free access — no checkout needed.
+  if (isOwnerEmail(session.user.email)) {
+    return NextResponse.json(
+      { owner: true, message: "Owner account — full access, no billing required." },
+      { status: 200 }
+    );
   }
 
   try {
@@ -65,6 +88,7 @@ export async function POST(req) {
     }
 
     // Create Checkout Session
+    const baseUrl = process.env.NEXTAUTH_URL || "https://chairaise.com";
     const checkoutSession = await stripe.checkout.sessions.create({
       customer: customer.id,
       mode: "subscription",
@@ -75,19 +99,14 @@ export async function POST(req) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.NEXTAUTH_URL || "https://chairaise.com"}/?billing=success`,
-      cancel_url: `${process.env.NEXTAUTH_URL || "https://chairaise.com"}/?billing=cancelled`,
+      success_url: `${baseUrl}/?billing=success`,
+      cancel_url: `${baseUrl}/?billing=cancelled`,
       metadata: {
         chairaise_org_id: orgId || "default",
         chairaise_plan: plan || "pro",
       },
-      subscription_data: {
-        metadata: {
-          chairaise_org_id: orgId || "default",
-          chairaise_plan: plan || "pro",
-        },
-      },
-      // Trial period: 14 days free
+      // Single subscription_data block: 14-day trial + metadata carried onto the
+      // subscription so the webhook can attribute it to the right org/plan.
       subscription_data: {
         trial_period_days: 14,
         metadata: {
@@ -108,67 +127,76 @@ export async function POST(req) {
 }
 
 // ============================================================
-// GET — Get current subscription status
+// GET — Resolve the current user's plan + entitlements (authoritative)
+// Order of truth: owner allowlist → persisted subscription (webhook) → Stripe
+// live lookup (self-heal) → Starter. The client renders whatever this returns.
 // ============================================================
 export async function GET() {
-  if (!stripe) {
-    return NextResponse.json({ plan: "starter", status: "active", billing: "not_configured" });
-  }
-
   const session = await auth();
-  if (!session?.user?.email) {
-    return NextResponse.json({ plan: "starter", status: "unauthenticated" });
+  const email = session?.user?.email;
+
+  // 1) Owner override — full access, free, regardless of Stripe state.
+  if (email && isOwnerEmail(email)) {
+    return NextResponse.json(statusPayload("owner", { owner: true }));
   }
 
-  try {
-    // Find customer by email
-    const customers = await stripe.customers.list({
-      email: session.user.email,
-      limit: 1,
-    });
-
-    if (customers.data.length === 0) {
-      return NextResponse.json({ plan: "starter", status: "active", message: "Free tier" });
+  // 2) Persisted subscription from webhooks (no Stripe round-trip needed).
+  if (email) {
+    try {
+      const sub = await getSubscriptionByEmail(email);
+      if (sub) {
+        const planId = resolvePlan(email, sub.status, sub.plan);
+        return NextResponse.json(
+          statusPayload(planId, {
+            status: sub.status,
+            trial_end: sub.trial_end,
+            current_period_end: sub.current_period_end,
+            cancel_at_period_end: sub.cancel_at_period_end,
+            subscription_id: sub.stripe_subscription_id || undefined,
+          })
+        );
+      }
+    } catch (e) {
+      // DB unavailable — fall through to Stripe / starter rather than 500.
+      console.warn("[Billing] subscription lookup failed:", e.message);
     }
-
-    const customer = customers.data[0];
-
-    // Get active subscriptions
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customer.id,
-      status: "all",
-      limit: 5,
-    });
-
-    const activeSub = subscriptions.data.find(
-      (s) => s.status === "active" || s.status === "trialing"
-    );
-
-    if (activeSub) {
-      return NextResponse.json({
-        plan: activeSub.metadata?.chairaise_plan || "pro",
-        status: activeSub.status,
-        trial_end: activeSub.trial_end ? new Date(activeSub.trial_end * 1000).toISOString() : null,
-        current_period_end: new Date(activeSub.current_period_end * 1000).toISOString(),
-        cancel_at_period_end: activeSub.cancel_at_period_end,
-        customer_id: customer.id,
-        subscription_id: activeSub.id,
-      });
-    }
-
-    // Check for past subscriptions
-    const pastSub = subscriptions.data[0];
-    if (pastSub) {
-      return NextResponse.json({
-        plan: "starter",
-        status: pastSub.status,
-        message: `Previous subscription ${pastSub.status}`,
-      });
-    }
-
-    return NextResponse.json({ plan: "starter", status: "active" });
-  } catch (error) {
-    console.error("Stripe status error:", error.message);
-    return NextResponse.json({ plan: "starter", status: "error", error: error.message });
   }
+
+  // 3) No persisted row. If Stripe is configured, do a live self-heal lookup.
+  if (stripe && email) {
+    try {
+      const customers = await stripe.customers.list({ email, limit: 1 });
+      if (customers.data.length > 0) {
+        const subscriptions = await stripe.subscriptions.list({
+          customer: customers.data[0].id,
+          status: "all",
+          limit: 5,
+        });
+        const activeSub = subscriptions.data.find(
+          (s) => s.status === "active" || s.status === "trialing"
+        );
+        if (activeSub) {
+          const planId = resolvePlan(email, activeSub.status, activeSub.metadata?.chairaise_plan);
+          return NextResponse.json(
+            statusPayload(planId, {
+              status: activeSub.status,
+              trial_end: activeSub.trial_end ? new Date(activeSub.trial_end * 1000).toISOString() : null,
+              current_period_end: activeSub.current_period_end
+                ? new Date(activeSub.current_period_end * 1000).toISOString()
+                : null,
+              cancel_at_period_end: activeSub.cancel_at_period_end,
+              subscription_id: activeSub.id,
+            })
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Stripe status error:", error.message);
+    }
+  }
+
+  // 4) Default — free Starter tier (also the keyless/not-configured path).
+  return NextResponse.json(
+    statusPayload("starter", { billing: stripe ? "active" : "not_configured" })
+  );
 }

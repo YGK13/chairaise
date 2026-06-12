@@ -1,6 +1,7 @@
 import './globals.css';
 
 export const metadata = {
+  metadataBase: new URL(process.env.NEXTAUTH_URL || 'https://chairaise.com'),
   title: 'ChaiRaise — AI-Native Jewish Fundraising CRM',
   description: 'Multiply your impact by 18. AI-powered donor intelligence, cause matching, and multi-channel outreach for Jewish organizations.',
   icons: { icon: '/favicon.ico' },

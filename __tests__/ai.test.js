@@ -106,18 +106,27 @@ describe("aiLikelihood", () => {
 });
 
 describe("aiAsk", () => {
-  it("returns 18000 for donors with no data", () => {
+  // Asks snap to resonant chai-aligned figures (chai = $18 and its classic
+  // multiples scaled by powers of ten). See CHAI_ASK_LADDER in lib/ai.js.
+  it("returns chai ($18,000) for donors with no data", () => {
     expect(aiAsk({})).toBe(18000);
   });
 
-  it("returns higher for higher net worth", () => {
-    expect(aiAsk({ net_worth: 100000000 })).toBe(100000);
-    expect(aiAsk({ net_worth: 50000000 })).toBe(75000);
-    expect(aiAsk({ net_worth: 10000000 })).toBe(50000);
+  it("returns higher, chai-aligned asks for higher net worth", () => {
+    expect(aiAsk({ net_worth: 100000000 })).toBe(180000); // 10x chai
+    expect(aiAsk({ net_worth: 50000000 })).toBe(90000); // 5x chai
+    expect(aiAsk({ net_worth: 10000000 })).toBe(54000); // 3x chai
+    expect(aiAsk({ net_worth: 5000000 })).toBe(36000); // 2x chai
   });
 
-  it("returns 1.5x prior giving when available", () => {
-    expect(aiAsk({ annual_giving: 50000 })).toBe(75000);
-    expect(aiAsk({ annual_giving: 10000 })).toBe(25000); // Max of 1.5x and 25000
+  it("bases ask on 1.5x prior giving, snapped to nearest chai rung", () => {
+    expect(aiAsk({ annual_giving: 50000 })).toBe(72000); // 1.5x50k=75k -> nearest rung 72k
+    expect(aiAsk({ annual_giving: 10000 })).toBe(18000); // 1.5x10k=15k -> floor is chai 18k
+  });
+
+  it("always returns a true chai multiple (divisible by 18)", () => {
+    for (const nw of [0, 1e6, 5e6, 1e7, 5e7, 1e8]) {
+      expect(aiAsk({ net_worth: nw }) % 18).toBe(0);
+    }
   });
 });

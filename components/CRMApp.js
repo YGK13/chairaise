@@ -6,6 +6,7 @@
 
 import {useState,useEffect,useCallback,useRef,useMemo,createContext,useContext} from "react";
 import {donorsAPI,donationsAPI,emailAPI,checkDBAvailable} from "@/lib/useData";
+import {PlanProvider,usePlan,ProGate,ProBadge,FEAT} from "@/components/PlanGate";
 
 // Shared modules (extracted from monolith)
 import {DEFAULT_TEMPLATES,DEFAULT_COMMUNITY_MAP,STAGES,TIERS,NAV,DONOR_FIELDS,FIELD_GROUPS,ACT_TYPES,ORG_TYPES,DEFAULT_ORG,EMPTY_ORG_PROFILE,ROLES,TAG_COLORS} from "@/lib/constants";
@@ -3114,6 +3115,10 @@ function AppInner(){
   const[authed,setAuthed]=useState(()=>!!getSession());
   const toastCtx=useToast();
   const addToast=toastCtx.addToast;
+  const plan=usePlan();
+
+  // Expose the active org to the upgrade/checkout flow (read in PlanGate).
+  useEffect(()=>{if(typeof window!=="undefined")window.__chairaise_org=getActiveOrg();},[]);
 
   // Check for session on mount — NextAuth syncs it to localStorage in page.js
   useEffect(()=>{
@@ -3411,6 +3416,13 @@ function AppInner(){
           // Use DB-assigned ID
           setDonors(p=>[...p,{...newDonor,...result.donor}]);
         }catch(e){
+          // Plan cap reached — respect the server gate (do NOT fall back to
+          // local, which would silently bypass the limit) and prompt upgrade.
+          if(e.status===402||e.code==="donor_limit_reached"){
+            addToast({type:"warning",title:"Donor limit reached",message:e.message||"Upgrade to add more donors."});
+            plan.upgrade("unlimited donors");
+            return;
+          }
           console.warn("DB create failed, saving locally:",e.message);
           setDonors(p=>[...p,{...newDonor,id:newDonor.id||Date.now()}]);
         }
@@ -3419,7 +3431,7 @@ function AppInner(){
       }
       appendAudit({type:"donor_add",action:"Donor added",detail:donor.name,user:session?.name});
     }
-  },[session,useDB]);
+  },[session,useDB,addToast,plan]);
 
   // -- Log activity + optional reminder --
   const logActivity=useCallback((act,rem)=>{
@@ -3538,7 +3550,7 @@ function AppInner(){
             <option value="" disabled>Move to stage...</option>
             {STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
-          <button className="btn btn-ghost btn-sm" onClick={()=>setShowBatchEmail(true)}>✉️ Batch Email</button>
+          <button className="btn btn-ghost btn-sm" onClick={()=>{if(plan.can(FEAT.BATCH_CAMPAIGNS)){setShowBatchEmail(true)}else{plan.upgrade("batch campaigns")}}}>✉️ Batch Email{!plan.can(FEAT.BATCH_CAMPAIGNS)&&<ProBadge style={{marginLeft:6,transform:"scale(0.85)"}}/>}</button>
           <button className="btn btn-ghost btn-sm" style={{color:"var(--red)"}} onClick={bulkDelete}>🗑️ Delete</button>
         </div>
       </div>}
@@ -3556,7 +3568,7 @@ function AppInner(){
         {page==="donors"&&sub==="list"&&<ListView donors={donors} acts={acts} onSelect={setSelD} selId={selD?.id||selD?.name} onStage={chgStage} bulkSel={bulkSel} onToggleBulk={toggleBulk} onCompose={setCompD}/>}
         {page==="donors"&&sub==="board"&&<BoardView donors={donors} acts={acts} onSelect={setSelD} onStage={chgStage}/>}
         {page==="donors"&&sub==="timeline"&&<TimelineView acts={acts} donors={donors}/>}
-        {page==="network"&&<NetworkDashboard donors={donors} graphContacts={graphContacts} setGraphContacts={setGraphContacts} graphData={graphData} setGraphData={setGraphData}/>}
+        {page==="network"&&<ProGate feature={FEAT.SOCIAL_GRAPH} title="Social graph mapping"><NetworkDashboard donors={donors} graphContacts={graphContacts} setGraphContacts={setGraphContacts} graphData={graphData} setGraphData={setGraphData}/></ProGate>}
         {page==="campaigns"&&<CampaignManager campaigns={campaigns} donors={donors} deals={deals} acts={acts} onAddCampaign={addCampaign} onUpdateCampaign={updateCampaign} activeCampaign={activeCampaign} setActiveCampaign={setActiveCampaign}/>}
         {page==="analytics"&&<AdvancedAnalytics donors={donors} acts={acts} deals={deals} campaigns={campaigns} outreachLog={outreachLog}/>}
         {page==="outreach"&&<OutreachCoach donors={donors} acts={acts} graphData={graphData} graphContacts={graphContacts} apiKey={apiKey} outreachLog={outreachLog} onLogOutreach={logOutreach}/>}
@@ -3571,7 +3583,7 @@ function AppInner(){
         {page==="duplicates"&&<DuplicateDetector donors={donors} onMerge={mergeDonors}/>}
         {page==="automation"&&<FollowUpRules rules={autoRules} onToggleRule={toggleRule} onRunRules={runAutomationRules} autoCount={autoCount}/>}
         {page==="exports"&&<ExportPanel donors={donors} acts={acts} deals={deals} campaigns={campaigns} reminders={reminders} outreachLog={outreachLog}/>}
-        {page==="integrations"&&<IntegrationHub donors={donors} onImportDonors={(imported)=>{setDonors(p=>[...p,...imported])}}/>}
+        {page==="integrations"&&<ProGate feature={FEAT.INTEGRATIONS} title="Platform integrations"><IntegrationHub donors={donors} onImportDonors={(imported)=>{setDonors(p=>[...p,...imported])}}/></ProGate>}
         {page==="admin"&&<OrgAdminPanel session={session} donors={donors} acts={acts} deals={deals}/>}
         {page==="settings"&&<Settings apiKey={apiKey} setKey={setKey} pplxKey={pplxKey} setPplxKey={setPplxKey} aiProvider={aiProvider} setAiProvider={setAiProvider} donors={donors} acts={acts} notes={notes} deals={deals} waBridge={waBridge} setWaBridge={setWaBridgeFn}/>}
       </div>
@@ -3644,7 +3656,7 @@ function AppInner(){
 // WRAPPER APP — provides ToastContext to all components
 // ============================================================
 function App(){
-  return(<ToastProvider><AppInner/></ToastProvider>);
+  return(<ToastProvider><PlanProvider><AppInner/></PlanProvider></ToastProvider>);
 }
 
 export default App;

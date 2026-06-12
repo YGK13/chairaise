@@ -5,6 +5,7 @@
 // ============================================================
 import { getDb } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { denyIfNoOrgAccess } from "@/lib/authz";
 
 export async function GET(req) {
   try {
@@ -14,6 +15,9 @@ export async function GET(req) {
     const donorId = searchParams.get("donor_id");
 
     if (!orgId) return Response.json({ error: "org_id required" }, { status: 400 });
+
+    const denied = await denyIfNoOrgAccess(session, orgId);
+    if (denied) return denied;
 
     const sql = getDb();
 
@@ -80,6 +84,9 @@ export async function POST(req) {
     if (!org_id || !donor_id || !amount) {
       return Response.json({ error: "org_id, donor_id, and amount are required" }, { status: 400 });
     }
+
+    const denied = await denyIfNoOrgAccess(session, org_id);
+    if (denied) return denied;
 
     const sql = getDb();
     const [donation] = await sql`

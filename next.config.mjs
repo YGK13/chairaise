@@ -1,6 +1,16 @@
+import { dirname } from "path";
+import { fileURLToPath } from "url";
+
+// Pin the workspace root to this project so Next ignores the parent Downloads
+// lockfile (silences the multi-lockfile "inferred workspace root" warning).
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+
+  // Turbopack workspace root — see note above.
+  turbopack: { root: __dirname },
 
   // ============================================================
   // SECURITY HEADERS — protect against XSS, clickjacking, MIME sniffing

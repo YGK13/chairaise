@@ -3,8 +3,23 @@
 // GET /api/donors?org_id=xxx — List all donors for an org
 // POST /api/donors — Create a new donor
 // ============================================================
-import { getDb } from "@/lib/db";
+import { getDb, getSubscriptionByEmail } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { resolvePlan, limitFor } from "@/lib/plan";
+import { denyIfNoOrgAccess } from "@/lib/authz";
+
+// Resolve the caller's plan authoritatively (owner allowlist → subscription → starter).
+async function planForSession(session) {
+  const email = session?.user?.email;
+  if (!email) return "starter";
+  try {
+    const sub = await getSubscriptionByEmail(email);
+    return resolvePlan(email, sub?.status, sub?.plan);
+  } catch {
+    // resolvePlan handles the owner allowlist without the DB; fall back to that.
+    return resolvePlan(email, undefined);
+  }
+}
 
 // ---- GET: List donors for an org ----
 export async function GET(req) {
@@ -16,6 +31,9 @@ export async function GET(req) {
     if (!orgId) {
       return Response.json({ error: "org_id is required" }, { status: 400 });
     }
+
+    const denied = await denyIfNoOrgAccess(session, orgId);
+    if (denied) return denied;
 
     const sql = getDb();
     const donors = await sql`
@@ -51,7 +69,33 @@ export async function POST(req) {
       return Response.json({ error: "org_id and name are required" }, { status: 400 });
     }
 
+    const denied = await denyIfNoOrgAccess(session, org_id);
+    if (denied) return denied;
+
     const sql = getDb();
+
+    // ---- Entitlement: enforce the Starter donor cap server-side ----
+    const plan = await planForSession(session);
+    const cap = limitFor(plan, "donors"); // null === unlimited (pro/owner/enterprise)
+    if (cap !== null) {
+      const [{ count }] = await sql`
+        SELECT COUNT(*)::int AS count FROM donors WHERE org_id = ${org_id}
+      `;
+      if (count >= cap) {
+        return Response.json(
+          {
+            error: `Your Starter plan is limited to ${cap} donors.`,
+            code: "donor_limit_reached",
+            plan,
+            limit: cap,
+            current: count,
+            upgrade: true,
+          },
+          { status: 402 }
+        );
+      }
+    }
+
     const [donor] = await sql`
       INSERT INTO donors (
         org_id, name, email, phone, city, tier, community, school,
