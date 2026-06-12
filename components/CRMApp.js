@@ -991,18 +991,9 @@ function TeamDashboard({acts,donors,users}){
 
 // ============================================================
 // COMPONENT: DataLoader
+// New organizations start from scratch (empty). Donors arrive via manual
+// entry, CSV/JSON import, or platform integrations — never seeded demo data.
 // ============================================================
-// -- Generate demo data (org-generic — no hardcoded communities) --
-const generateDemoData=()=>{
-  const names=["David Goldstein","Sarah Roth","Michael Cohen","Rachel Levy","Jonathan Green","Rebecca Stern","Daniel Weiss","Miriam Katz","Joshua Fried","Leah Bernstein","Adam Schwartz","Hannah Silver","Samuel Fox","Naomi Pearl","Benjamin Hart","Esther Diamond","Nathan Brooks","Tamar Gold","Isaac Stone","Deborah Rose","Aaron Wolf","Judith Glass","Eli Klein","Ruth Blum","Noah Kaplan"];
-  const comms=["Local Synagogue","Federation","Community Center","Day School Alumni","Young Leadership","Neighborhood Committee","Family Foundation","Board Network","Heritage Group","Professional Circle","Sisterhood","Men's Club","Youth Alumni","Donor Circle","Memorial Fund","Scholarship Fund","Cultural Society","Women's League","Chesed Group","Young Professionals","Torah Study","Board Alumni","Gala Committee","Annual Campaign","Capital Campaign"];
-  const inds=["Real Estate","Finance","Banking","Healthcare","Law","Tech","Private Equity","Retail","Venture Capital","Consulting","Insurance","Pharma","Real Estate","Import/Export","Finance","Manufacturing","Construction","Law","Tech","Private Equity","Banking","Consulting","Real Estate","Finance","Venture Capital"];
-  const nws=[150e6,80e6,200e6,45e6,30e6,95e6,60e6,25e6,120e6,55e6,40e6,70e6,180e6,35e6,90e6,65e6,110e6,50e6,75e6,85e6,42e6,58e6,130e6,38e6,160e6];
-  const ags=[500000,250000,750000,100000,75000,300000,150000,50000,400000,125000,80000,200000,600000,60000,350000,175000,450000,90000,225000,280000,95000,140000,500000,70000,550000];
-  const cities=["New York","Los Angeles","Chicago","Miami","Boston","Teaneck","Baltimore","Jerusalem","Tel Aviv","Philadelphia","Dallas","Atlanta","New York","Boca Raton","New York","Brooklyn","Woodmere","Denver","San Francisco","Teaneck","New York","Philadelphia","Potomac","New York","New York"];
-  return names.map((n,i)=>({id:i+1,name:n,email:`donor${i+1}@example.com`,phone:`+1-555-${String(1000+i).slice(-4)}-${String(2000+i).slice(-4)}`,net_worth:nws[i],annual_giving:ags[i],community:comms[i],industry:inds[i],tier:i<8?"Tier 1":(i<18?"Tier 2":"Tier 3"),warmth_score:Math.floor(Math.random()*8)+2,pipeline_stage:STAGES[Math.floor(Math.random()*7)].id,connector_paths:[{name:"Board Member",role:"Community Leader",strength:"Strong"},{name:"Committee Chair",role:"Advisory",strength:"Medium"}].slice(0,Math.random()>.3?2:1),focus_areas:["Jewish Education","Israel","Torah Study","Youth Programs","Community Building"].sort(()=>Math.random()-.5).slice(0,2),city:cities[i]}));
-};
-
 function DataLoader({onLoad}){
   const[txt,setTxt]=useState("");const fRef=useRef();const[importing,setImporting]=useState(false);const[importResult,setImportResult]=useState(null);
   const handleFile=(f)=>{
@@ -1045,9 +1036,8 @@ function DataLoader({onLoad}){
     };
     r.readAsText(f);
   };
-  const loadDemo=()=>onLoad(generateDemoData());
   return(<div className="loader-overlay"><div className="loader-card">
-    <h2>⚡ ChaiRaise CRM</h2><p>Import your donor data or explore with demo donors.</p>
+    <h2>⚡ ChaiRaise CRM</h2><p>Import your donor data to get started, or add donors manually.</p>
     <div className="drop-zone" onClick={()=>fRef.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f)handleFile(f)}}>
       <p>{importing?"⏳ Importing...":"📁 Drop or click to upload (JSON or CSV)"}</p>
       <input ref={fRef} type="file" accept=".json,.csv,.tsv" style={{display:"none"}} onChange={e=>e.target.files[0]&&handleFile(e.target.files[0])}/></div>
@@ -1057,7 +1047,7 @@ function DataLoader({onLoad}){
     <textarea className="form-textarea" value={txt} onChange={e=>setTxt(e.target.value)} placeholder='[{"name":"...","email":"...","tier":"Tier 1"}]' style={{minHeight:"80px"}}/>
     <div style={{display:"flex",gap:"8px",justifyContent:"center",marginTop:"12px"}}>
       <button className="btn btn-primary" onClick={()=>{try{const d=JSON.parse(txt);onLoad(Array.isArray(d)?d:(d.donors||d.records||[d]))}catch(e){alert("Invalid JSON")}}} disabled={!txt.trim()}>Load</button>
-      <button className="btn btn-ghost" onClick={loadDemo}>Demo Data (25 Donors)</button>
+      <button className="btn btn-ghost" onClick={()=>onLoad([])}>Start Empty</button>
     </div></div></div>);
 }
 
@@ -3475,9 +3465,7 @@ function AppInner(){
     if(ap){setAiProvider(ap)}
     setShowWizard(false);
     appendAudit({type:"login",action:"Organization created via onboarding",detail:org.name,user:session?.name});
-    if(dataChoice==="demo"){
-      loadData(generateDemoData());
-    }else if(dataChoice==="empty"){
+    if(dataChoice==="empty"){
       loadData([]);
     }
     // json/csv choices will show the DataLoader or CSVImport after
@@ -3497,9 +3485,8 @@ function AppInner(){
 
   if(!donors&&!showWizard)return <DataLoader onLoad={loadData}/>;
   if(!donors&&showWizard)return <OnboardingWizard onComplete={handleWizardComplete} onSkip={()=>{
-    // Skip setup → auto-load demo data so user isn't stuck on DataLoader
-    const demo=generateDemoData();
-    loadData(demo);
+    // Skip setup → start from scratch with an empty donor list (no demo data)
+    loadData([]);
     setShowWizard(false);
   }}/>;
 

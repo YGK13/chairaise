@@ -775,7 +775,7 @@ function GmailIntegration({graphContacts,setGraphContacts,donors,rebuildGraph}){
     </p>
 
     <textarea className="form-textarea" value={headerText} onChange={e=>setHeaderText(e.target.value)}
-      placeholder={'Paste email headers, To/From/CC lines, or full email threads here...\n\nExamples:\nFrom: David Goldstein <david@goldsteinfoundation.org>\nTo: Sarah Roth <sarah@rothfamily.com>, Michael Sherman <m.sherman@shermanfoundation.org>\nCC: "Rachel Levy" <rachel.levy@uja.org>'} style={{minHeight:100,marginBottom:8}}/>
+      placeholder={'Paste email headers, To/From/CC lines, or full email threads here...\n\nExamples:\nFrom: First Last <first.last@example.org>\nTo: Second Person <second@example.com>, Third Person <third@example.org>\nCC: "Fourth Person" <fourth@example.net>'} style={{minHeight:100,marginBottom:8}}/>
 
     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
       <button className="btn btn-primary btn-sm" onClick={importFromHeaders} disabled={!headerText.trim()}>📥 Import from Headers</button>

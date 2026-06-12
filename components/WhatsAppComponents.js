@@ -316,7 +316,7 @@ function WhatsAppHub({donors,onLogActivities}){
       <p style={{fontSize:12,color:"var(--text3)",marginBottom:16}}>Export a chat from WhatsApp (three-dot menu → More → Export Chat → Without Media), then paste the text below.</p>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
         <div className="form-group"><label className="form-label">Phone Number</label><input className="form-input" value={impPhone} onChange={e=>setImpPhone(e.target.value)} placeholder="+1-212-555-1234"/></div>
-        <div className="form-group"><label className="form-label">Contact Name</label><input className="form-input" value={impName} onChange={e=>setImpName(e.target.value)} placeholder="David Goldstein"/></div>
+        <div className="form-group"><label className="form-label">Contact Name</label><input className="form-input" value={impName} onChange={e=>setImpName(e.target.value)} placeholder="First Last"/></div>
       </div>
       <div className="form-group"><label className="form-label">Chat Export Text</label><textarea className="form-textarea" value={impText} onChange={e=>setImpText(e.target.value)} placeholder="Paste exported WhatsApp chat here..." style={{minHeight:150}}/></div>
       <button className="btn btn-primary" onClick={doImport} disabled={!impPhone||!impText}>Import Conversation</button>

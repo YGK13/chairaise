@@ -43,12 +43,12 @@ END:VCARD`;
 
   it("handles structured N field", () => {
     const vcf = `BEGIN:VCARD
-N:Goldstein;David;;;
+N:Last;First;;;
 END:VCARD`;
     const contacts = parseVCF(vcf);
-    expect(contacts[0].name).toBe("David Goldstein");
-    expect(contacts[0].first).toBe("David");
-    expect(contacts[0].last).toBe("Goldstein");
+    expect(contacts[0].name).toBe("First Last");
+    expect(contacts[0].first).toBe("First");
+    expect(contacts[0].last).toBe("Last");
   });
 });
 
@@ -111,16 +111,16 @@ describe("normPhone", () => {
 
 describe("fuzzyMatchDonor", () => {
   const donors = [
-    { name: "David Goldstein", email: "david@test.com", phone: "555-123-4567", id: "d1" },
-    { name: "Sarah Roth", email: "sarah@test.com", id: "d2" },
-    { name: "Jonathan Cohen", id: "d3" },
+    { name: "Alex Rivers", email: "david@test.com", phone: "555-123-4567", id: "d1" },
+    { name: "Jordan Blake", email: "jordan@test.com", id: "d2" },
+    { name: "Casey Stone", id: "d3" },
   ];
 
   it("matches by email (highest confidence)", () => {
     const contact = { name: "Dave G", emails: ["david@test.com"], phones: [] };
     const match = fuzzyMatchDonor(contact, donors);
     expect(match).not.toBeNull();
-    expect(match.donor.name).toBe("David Goldstein");
+    expect(match.donor.name).toBe("Alex Rivers");
     expect(match.matchType).toBe("email");
     expect(match.confidence).toBe(1.0);
   });
@@ -134,7 +134,7 @@ describe("fuzzyMatchDonor", () => {
   });
 
   it("matches by exact name", () => {
-    const contact = { name: "Sarah Roth", emails: [], phones: [], first: "Sarah", last: "Roth" };
+    const contact = { name: "Jordan Blake", emails: [], phones: [], first: "Jordan", last: "Blake" };
     const match = fuzzyMatchDonor(contact, donors);
     expect(match).not.toBeNull();
     expect(match.matchType).toBe("name_exact");

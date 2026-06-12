@@ -16,7 +16,7 @@ function OnboardingWizard({onComplete,onSkip}){
   const[apiKey,setApiKey]=useState("");
   const[aiProv,setAiProv]=useState("anthropic");
   const[pplxK,setPplxK]=useState("");
-  const[dataChoice,setDataChoice]=useState("demo");
+  const[dataChoice,setDataChoice]=useState("empty");
   // AI Research state
   const[researching,setResearching]=useState(false);
   const[researchProgress,setResearchProgress]=useState("");
@@ -177,10 +177,9 @@ function OnboardingWizard({onComplete,onSkip}){
           <h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>Load Your Donor Data</h3>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
             {[
-              {id:"demo",icon:"🎮",title:"Demo Data",desc:"25 sample donors to explore features"},
+              {id:"empty",icon:"✨",title:"Start Empty",desc:"Begin with a clean slate, add donors as you go"},
               {id:"json",icon:"📁",title:"JSON Upload",desc:"Import from existing CRM export"},
               {id:"csv",icon:"📊",title:"CSV Upload",desc:"Import from spreadsheet or other CRM"},
-              {id:"empty",icon:"✨",title:"Start Empty",desc:"Add donors manually one by one"},
             ].map(opt=>(
               <div key={opt.id} onClick={()=>setDataChoice(opt.id)} style={{
                 padding:16,borderRadius:"var(--radius-lg)",border:"2px solid "+(dataChoice===opt.id?"var(--accent)":"var(--border)"),
