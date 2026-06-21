@@ -9,10 +9,12 @@ import { NextResponse } from "next/server";
 import { isOwnerEmail, resolvePlan, planMeta } from "@/lib/plan";
 import { getSubscriptionByEmail } from "@/lib/db";
 
+// Accept either the canonical STRIPE_SECRET_KEY or the STRIPE_SECRET_API_KEY
+// alias (matches how it was provisioned in Vercel). Canonical wins if both set.
+const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_API_KEY;
+
 // Only initialize Stripe if the key exists (graceful degradation)
-const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY)
-  : null;
+const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY) : null;
 
 // Shape a billing status payload the client can trust to render entitlements.
 function statusPayload(planId, extra = {}) {

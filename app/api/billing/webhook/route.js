@@ -7,9 +7,9 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { upsertSubscription } from "@/lib/db";
 
-const stripe = process.env.STRIPE_SECRET_KEY
-  ? new Stripe(process.env.STRIPE_SECRET_KEY)
-  : null;
+// Accept either the canonical STRIPE_SECRET_KEY or the STRIPE_SECRET_API_KEY alias.
+const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_API_KEY;
+const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY) : null;
 
 // Convert a Stripe unix timestamp (seconds) to a JS Date, or null.
 const toDate = (unix) => (unix ? new Date(unix * 1000) : null);
