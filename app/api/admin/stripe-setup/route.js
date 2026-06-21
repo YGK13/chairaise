@@ -33,9 +33,11 @@ export async function POST(req) {
 
   try {
     // ---- Resolve the target account (org keys must scope to one account) ----
+    // If an account id was supplied, use it directly and skip discovery (org
+    // keys often lack permission to LIST accounts even when they can act on one).
     let accounts = [];
     let target = url.searchParams.get("account") || null;
-    if (isOrgKey) {
+    if (isOrgKey && !target) {
       try {
         const list = await orgClient.v2.core.accounts.list({ limit: 100 });
         accounts = (list.data || []).map((a) => ({
@@ -45,14 +47,8 @@ export async function POST(req) {
       } catch (e) {
         return NextResponse.json({ error: "account_list_failed: " + e.message }, { status: 500 });
       }
-      if (!target) {
-        if (accounts.length === 1) target = accounts[0].id;
-        else
-          return NextResponse.json(
-            { needs_account_choice: true, accounts },
-            { status: 200 }
-          );
-      }
+      if (accounts.length === 1) target = accounts[0].id;
+      else return NextResponse.json({ needs_account_choice: true, accounts }, { status: 200 });
     }
 
     // Client scoped to the chosen account (no-op context for standard keys).
