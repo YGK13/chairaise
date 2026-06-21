@@ -9,7 +9,11 @@ import { upsertSubscription } from "@/lib/db";
 
 // Accept either the canonical STRIPE_SECRET_KEY or the STRIPE_SECRET_API_KEY alias.
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_API_KEY;
-const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY) : null;
+// Org keys need account context (Stripe-Context) — set STRIPE_ACCOUNT_ID.
+const STRIPE_CFG = process.env.STRIPE_ACCOUNT_ID
+  ? { stripeContext: process.env.STRIPE_ACCOUNT_ID }
+  : undefined;
+const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY, STRIPE_CFG) : null;
 
 // Convert a Stripe unix timestamp (seconds) to a JS Date, or null.
 const toDate = (unix) => (unix ? new Date(unix * 1000) : null);

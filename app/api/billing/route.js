@@ -13,8 +13,14 @@ import { getSubscriptionByEmail } from "@/lib/db";
 // alias (matches how it was provisioned in Vercel). Canonical wins if both set.
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_API_KEY;
 
+// Organization keys (sk_org_/rk_org_) must target a specific account via the
+// Stripe-Context header — set STRIPE_ACCOUNT_ID for those. Harmless if unset.
+const STRIPE_CFG = process.env.STRIPE_ACCOUNT_ID
+  ? { stripeContext: process.env.STRIPE_ACCOUNT_ID }
+  : undefined;
+
 // Only initialize Stripe if the key exists (graceful degradation)
-const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY) : null;
+const stripe = STRIPE_KEY ? new Stripe(STRIPE_KEY, STRIPE_CFG) : null;
 
 // Shape a billing status payload the client can trust to render entitlements.
 function statusPayload(planId, extra = {}) {

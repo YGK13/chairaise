@@ -1,9 +1,9 @@
 // ============================================================
 // TEMPORARY one-shot Stripe provisioning endpoint.
-// Uses the server-side Stripe key (already in the runtime env) to create the
-// Pro product, its $149/mo price, and the billing webhook — then returns the
-// ids/secret so they can be saved to env. Token-gated and REMOVED right after
-// use. Idempotent: reuses an existing product/webhook if present.
+// Works with an Organization key (sk_org_...): discovers the org's account,
+// then creates the Pro product, $149/mo price, and billing webhook IN THAT
+// ACCOUNT's context. Returns the ids + webhook secret + account id so they can
+// be saved to env. Token-gated and REMOVED right after use.
 // ============================================================
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
@@ -20,29 +20,58 @@ const EVENTS = [
 ];
 
 export async function POST(req) {
-  const token = new URL(req.url).searchParams.get("token");
-  if (token !== SETUP_TOKEN) {
+  const url = new URL(req.url);
+  if (url.searchParams.get("token") !== SETUP_TOKEN) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   if (!STRIPE_KEY) {
     return NextResponse.json({ error: "Stripe key not present at runtime" }, { status: 503 });
   }
 
-  const stripe = new Stripe(STRIPE_KEY);
+  const isOrgKey = STRIPE_KEY.startsWith("sk_org_") || STRIPE_KEY.startsWith("rk_org_");
+  const orgClient = new Stripe(STRIPE_KEY);
+
   try {
-    // ---- Product (reuse by name if it exists) ----
-    const existingProducts = await stripe.products.list({ active: true, limit: 100 });
-    let product = existingProducts.data.find((p) => p.name === "ChaiRaise Professional");
+    // ---- Resolve the target account (org keys must scope to one account) ----
+    let accounts = [];
+    let target = url.searchParams.get("account") || null;
+    if (isOrgKey) {
+      try {
+        const list = await orgClient.v2.core.accounts.list({ limit: 100 });
+        accounts = (list.data || []).map((a) => ({
+          id: a.id,
+          name: a.display_name || a.contact_email || "",
+        }));
+      } catch (e) {
+        return NextResponse.json({ error: "account_list_failed: " + e.message }, { status: 500 });
+      }
+      if (!target) {
+        if (accounts.length === 1) target = accounts[0].id;
+        else
+          return NextResponse.json(
+            { needs_account_choice: true, accounts },
+            { status: 200 }
+          );
+      }
+    }
+
+    // Client scoped to the chosen account (no-op context for standard keys).
+    const stripe = target ? new Stripe(STRIPE_KEY, { stripeContext: target }) : orgClient;
+
+    // ---- Product (reuse by name) ----
+    const products = await stripe.products.list({ active: true, limit: 100 });
+    let product = products.data.find((p) => p.name === "ChaiRaise Professional");
     if (!product) {
       product = await stripe.products.create({
         name: "ChaiRaise Professional",
-        description: "Unlimited donors, AI Org Intelligence, cause-match scoring, social graph, integrations and batch campaigns.",
+        description:
+          "Unlimited donors, AI Org Intelligence, cause-match scoring, social graph, integrations and batch campaigns.",
       });
     }
 
-    // ---- Price ($149/mo recurring; reuse a matching one if present) ----
-    const existingPrices = await stripe.prices.list({ product: product.id, active: true, limit: 100 });
-    let price = existingPrices.data.find(
+    // ---- Price ($149/mo recurring; reuse if present) ----
+    const prices = await stripe.prices.list({ product: product.id, active: true, limit: 100 });
+    let price = prices.data.find(
       (p) => p.unit_amount === 14900 && p.currency === "usd" && p.recurring?.interval === "month"
     );
     if (!price) {
@@ -54,21 +83,22 @@ export async function POST(req) {
       });
     }
 
-    // ---- Webhook endpoint (reuse by URL; secret only returned on create) ----
-    const existingHooks = await stripe.webhookEndpoints.list({ limit: 100 });
-    let hook = existingHooks.data.find((h) => h.url === WEBHOOK_URL);
+    // ---- Webhook (reuse by URL; secret only returned on create) ----
+    const hooks = await stripe.webhookEndpoints.list({ limit: 100 });
+    let hook = hooks.data.find((h) => h.url === WEBHOOK_URL);
     let webhookSecret = null;
     let webhookReused = false;
     if (hook) {
-      webhookReused = true; // secret not retrievable for an existing endpoint
-      // Ensure it listens for the events we need.
+      webhookReused = true;
       hook = await stripe.webhookEndpoints.update(hook.id, { enabled_events: EVENTS });
     } else {
       hook = await stripe.webhookEndpoints.create({ url: WEBHOOK_URL, enabled_events: EVENTS });
-      webhookSecret = hook.secret; // whsec_... returned only at creation
+      webhookSecret = hook.secret;
     }
 
     return NextResponse.json({
+      account_id: target,
+      accounts,
       livemode: price.livemode,
       product_id: product.id,
       price_id: price.id,
