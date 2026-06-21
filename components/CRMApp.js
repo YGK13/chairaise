@@ -835,7 +835,7 @@ function BatchEmailComposer({donors,apiKey,onSend,onClose}){
     const bOrg=getActiveOrg();const bProfile=getOrgProfile();
     const prompt=`You are a fundraising copywriter for ${bOrg.name}${bProfile.mission?" — "+bProfile.mission:""}. Write a compelling outreach email template.\nTemplate: ${t?.name} — ${t?.segment}\nHooks: ${t?.hooks}\n\nWrite the email body with merge fields: {name}, {community}, {city}. 150-200 words. Warm, personal, compelling. End with CTA for a meeting. Sign as "${bOrg.name} Development Team".`;
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1024,messages:[{role:"user",content:prompt}]})});
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1024,messages:[{role:"user",content:prompt}]})});
       if(!res.ok)throw new Error(`API ${res.status}`);
       const data=await res.json();
       setBody(data.content?.[0]?.text||"");

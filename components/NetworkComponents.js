@@ -739,7 +739,7 @@ function GmailIntegration({graphContacts,setGraphContacts,donors,rebuildGraph}){
     setAiExtracting(true);
     try{
       const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",max_tokens:2048,
+        model:"claude-sonnet-4-6",max_tokens:2048,
         messages:[{role:"user",content:`Extract all person names and email addresses from these email headers/threads. Return ONLY a JSON array of objects with "name" and "email" fields. No explanation.\n\nText:\n${headerText.slice(0,8000)}`}]
       })});
       if(!res.ok)throw new Error(`API ${res.status}`);
