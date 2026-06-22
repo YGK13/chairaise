@@ -234,12 +234,77 @@ function Stat({ value, suffix, label, run }) {
 }
 
 // ============================================================
+// CONTACT / SALES MODAL
+// ============================================================
+function ContactModal({ plan, onClose }) {
+  const [form, setForm] = useState({ name: "", email: "", org: "", message: "", website: "" });
+  const [state, setState] = useState("idle"); // idle | sending | sent | error
+  const [err, setErr] = useState("");
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!form.email || !form.message) { setErr("Email and a short message are required."); return; }
+    setState("sending"); setErr("");
+    try {
+      const r = await fetch("/api/contact", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, plan }),
+      });
+      const d = await r.json();
+      if (!r.ok) { setErr(d.error || "Something went wrong."); setState("error"); return; }
+      setState("sent");
+    } catch {
+      setErr("Could not send. Please email hello@chairaise.com."); setState("error");
+    }
+  };
+
+  const field = { width: "100%", padding: "10px 12px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", marginBottom: 10 };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 28 }}>
+        {state === "sent" ? (
+          <div style={{ textAlign: "center", padding: "20px 0" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>✓</div>
+            <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Thanks — we&apos;ll be in touch</h3>
+            <p style={{ fontSize: 14, color: C.text3, lineHeight: 1.6, marginBottom: 20 }}>Your message is on its way. We typically reply within one business day.</p>
+            <button onClick={onClose} style={{ padding: "11px 24px", background: C.accent, color: "#09090b", border: "none", borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Done</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
+              <h3 style={{ fontSize: 20, fontWeight: 800 }}>Talk to us</h3>
+              <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.text3, fontSize: 20, cursor: "pointer" }}>✕</button>
+            </div>
+            <p style={{ fontSize: 13, color: C.text3, marginBottom: 18 }}>Tell us about your organization and we&apos;ll get right back to you{plan ? ` about ${plan}` : ""}.</p>
+            <form onSubmit={submit}>
+              <input style={field} placeholder="Your name" value={form.name} onChange={set("name")} />
+              <input style={field} type="email" placeholder="Work email *" value={form.email} onChange={set("email")} required />
+              <input style={field} placeholder="Organization" value={form.org} onChange={set("org")} />
+              <textarea style={{ ...field, minHeight: 90, resize: "vertical" }} placeholder="How can we help? *" value={form.message} onChange={set("message")} required />
+              {/* honeypot — hidden from humans */}
+              <input tabIndex={-1} autoComplete="off" value={form.website} onChange={set("website")} style={{ position: "absolute", left: "-9999px", width: 1, height: 1 }} aria-hidden="true" />
+              {err && <div style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444", padding: "8px 12px", borderRadius: 6, fontSize: 12, marginBottom: 10 }}>{err}</div>}
+              <button type="submit" disabled={state === "sending"} style={{ width: "100%", padding: 12, background: C.accent, color: "#09090b", border: "none", borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: state === "sending" ? 0.6 : 1 }}>
+                {state === "sending" ? "Sending…" : "Send message"}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // PAGE
 // ============================================================
 export default function LandingPage() {
   const [tab, setTab] = useState("intel");
   const [openFaq, setOpenFaq] = useState(0);
   const [showVideo, setShowVideo] = useState(false);
+  const [contactPlan, setContactPlan] = useState(null); // null = closed; string = open + interest
   const [statsRun, setStatsRun] = useState(false);
   const statsRef = useRef(null);
   const active = SHOWCASE.find((s) => s.key === tab);
@@ -465,7 +530,11 @@ export default function LandingPage() {
               <p style={{ fontSize: 12, color: C.text3, marginBottom: 14 }}>{p.desc}</p>
               <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1 }}>{p.price}<span style={{ fontSize: 15, fontWeight: 500, color: C.text3 }}>{p.per || ""}</span></div>
               <p style={{ fontSize: 11, color: C.text4, marginBottom: 20 }}>{p.note}</p>
-              <Link className="cr-cta" href={p.name === "Enterprise" ? "mailto:hello@chairaise.com" : "/auth/signin"} style={{ display: "block", textAlign: "center", padding: 12, borderRadius: 9, fontSize: 14, fontWeight: 700, textDecoration: "none", marginBottom: 20, background: p.highlight ? C.accent : "transparent", color: p.highlight ? "#09090b" : C.text, border: p.highlight ? "none" : `1px solid ${C.border2}` }}>{p.cta}</Link>
+              {p.name === "Enterprise" ? (
+                <button className="cr-cta" onClick={() => setContactPlan("Enterprise")} style={{ display: "block", width: "100%", textAlign: "center", padding: 12, borderRadius: 9, fontSize: 14, fontWeight: 700, marginBottom: 20, background: "transparent", color: C.text, border: `1px solid ${C.border2}`, cursor: "pointer", fontFamily: "inherit" }}>{p.cta}</button>
+              ) : (
+                <Link className="cr-cta" href={p.name === "Professional" ? "/auth/signin?upgrade=1" : "/auth/signin"} style={{ display: "block", textAlign: "center", padding: 12, borderRadius: 9, fontSize: 14, fontWeight: 700, textDecoration: "none", marginBottom: 20, background: p.highlight ? C.accent : "transparent", color: p.highlight ? "#09090b" : C.text, border: p.highlight ? "none" : `1px solid ${C.border2}` }}>{p.cta}</Link>
+              )}
               <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 13, color: C.text2, lineHeight: 1.9 }}>
                 {p.feats.map((f) => (<li key={f}>✓ {f}</li>))}
               </ul>
@@ -550,6 +619,9 @@ export default function LandingPage() {
           </div>
         </div>
       )}
+
+      {/* ===== CONTACT / SALES MODAL ===== */}
+      {contactPlan && <ContactModal plan={contactPlan} onClose={() => setContactPlan(null)} />}
     </div>
   );
 }

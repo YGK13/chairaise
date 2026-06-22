@@ -3471,6 +3471,22 @@ function AppInner(){
     // json/csv choices will show the DataLoader or CSVImport after
   };
 
+  // ---- "Start Free Trial" intent from the marketing site ----
+  // /app?upgrade=1 stashes intent (survives onboarding), then opens the Stripe
+  // upgrade modal once the main app is showing.
+  useEffect(()=>{
+    if(typeof window==="undefined")return;
+    const params=new URLSearchParams(window.location.search);
+    if(params.get("upgrade")==="1"){
+      sessionStorage.setItem("cr_pending_upgrade","1");
+      window.history.replaceState({},"","/app");
+    }
+    if(authed&&donors&&!showWizard&&sessionStorage.getItem("cr_pending_upgrade")==="1"){
+      sessionStorage.removeItem("cr_pending_upgrade");
+      plan.upgrade("Professional");
+    }
+  },[authed,donors,showWizard,plan]);
+
   // ---- Auth gate (AFTER all hooks to comply with React rules) ----
   // If not authenticated, redirect to NextAuth sign-in
   if(!authed){

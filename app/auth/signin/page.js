@@ -26,6 +26,8 @@ function SignInPage() {
   const [oauth, setOauth] = useState({ google: false, linkedin: false });
   const searchParams = useSearchParams();
   const urlError = searchParams.get("error");
+  // Carry "Start Free Trial" intent from the marketing pricing card into the app.
+  const dest = searchParams.get("upgrade") === "1" ? "/app?upgrade=1" : "/app";
 
   useEffect(() => {
     fetch("/api/auth/providers")
@@ -54,7 +56,7 @@ function SignInPage() {
         redirect: false,
       });
       if (result?.ok) {
-        window.location.href = "/app";
+        window.location.href = dest;
       } else {
         setError("Demo login failed. Please try email login.");
       }
@@ -80,7 +82,7 @@ function SignInPage() {
       if (result?.error) {
         setError("Login failed. Check your credentials and try again.");
       } else if (result?.ok) {
-        window.location.href = "/app";
+        window.location.href = dest;
       } else {
         setError("Login failed. Please try again.");
       }
@@ -95,7 +97,7 @@ function SignInPage() {
     setLoading(provider);
     setError("");
     try {
-      await signIn(provider, { callbackUrl: "/app" });
+      await signIn(provider, { callbackUrl: dest });
     } catch (e) {
       setError(`${provider} login not configured yet. Use email or demo login.`);
       setLoading("");
