@@ -32,7 +32,23 @@ async function emailForSubscription(subscription) {
 }
 
 // Persist a Stripe subscription object to our subscriptions table.
+// This Stripe account is shared across all of Yuri's products, so this endpoint
+// receives events for DueDrill, Career Beast Mode, etc. too. Only persist
+// subscriptions that are actually ChaiRaise — matched by our price id or the
+// metadata we stamp at checkout — so other products never pollute our DB.
+function isChaiRaiseSubscription(subscription) {
+  const priceId = process.env.STRIPE_PRO_PRICE_ID;
+  const items = subscription?.items?.data || [];
+  if (priceId && items.some((i) => i?.price?.id === priceId)) return true;
+  if (subscription?.metadata?.chairaise_org_id || subscription?.metadata?.chairaise_plan) return true;
+  return false;
+}
+
 async function persistSubscription(subscription, emailOverride) {
+  if (!isChaiRaiseSubscription(subscription)) {
+    console.log(`[Billing] Ignoring non-ChaiRaise subscription ${subscription?.id}`);
+    return;
+  }
   const email = emailOverride || (await emailForSubscription(subscription));
   if (!email) {
     console.error("[Billing] No email for subscription", subscription.id);
