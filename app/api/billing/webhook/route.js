@@ -72,25 +72,31 @@ export async function POST(req) {
     return NextResponse.json({ error: "Stripe not configured" }, { status: 503 });
   }
 
+  // Hard-fail if the webhook secret isn't configured. Without it we cannot
+  // verify the request actually came from Stripe, and this endpoint writes
+  // subscription/billing state straight into the DB — accepting unsigned
+  // traffic here would let anyone forge a "paid" subscription for any email.
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    console.error("[Billing] STRIPE_WEBHOOK_SECRET is not set — refusing to process webhook.");
+    return NextResponse.json(
+      { error: "Webhook secret not configured on server" },
+      { status: 500 }
+    );
+  }
+
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
 
-  // Verify webhook signature if secret is configured
+  // Verify webhook signature (required — no more unverified dev-mode fallback).
   let event;
-  if (process.env.STRIPE_WEBHOOK_SECRET && sig) {
-    try {
-      event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-    } catch (err) {
-      console.error("Webhook signature verification failed:", err.message);
-      return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
-    }
-  } else {
-    // Dev mode: parse without verification
-    try {
-      event = JSON.parse(body);
-    } catch {
-      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-    }
+  if (!sig) {
+    return NextResponse.json({ error: "Missing stripe-signature header" }, { status: 400 });
+  }
+  try {
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error("Webhook signature verification failed:", err.message);
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
 
   // Handle the event. Persistence is wrapped so a DB hiccup returns 500 and

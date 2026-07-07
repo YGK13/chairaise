@@ -41,8 +41,11 @@ function OnboardingWizard({onComplete,onSkip}){
     finally{setResearching(false)}
   };
 
-  const finish=()=>{
-    const org={
+  const[saving,setSaving]=useState(false);
+  const[saveErr,setSaveErr]=useState("");
+
+  const finish=async()=>{
+    const localOrg={
       id:orgName.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"")||"my_org",
       name:orgName||"My Organization",
       tagline:orgTagline,logo:orgLogo.slice(0,2).toUpperCase(),
@@ -50,6 +53,41 @@ function OnboardingWizard({onComplete,onSkip}){
       mission:orgMission||orgProfile?.mission||"",
       currency:"USD",created:new Date().toISOString()
     };
+
+    // Persist the org to Postgres via POST /api/orgs so it survives across
+    // browsers/devices instead of living only in this browser's localStorage.
+    // Best-effort: if the API call fails (offline, DB down, not logged in
+    // yet), we still let the user into the app with the local-only org
+    // rather than blocking onboarding — but we surface the failure so it's
+    // visible instead of silently losing the org server-side.
+    let org=localOrg;
+    setSaving(true);setSaveErr("");
+    try{
+      const res=await fetch("/api/orgs",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          name:localOrg.name,website:orgWebsite,org_type:orgType,
+          mission:localOrg.mission,ein:orgEIN,tagline:orgTagline,logo:localOrg.logo
+        })
+      });
+      if(res.ok){
+        const data=await res.json();
+        if(data?.org?.id){
+          // Use the server-persisted org (authoritative id/verified flag)
+          // merged over the local shape the rest of the app expects.
+          org={...localOrg,...data.org,created:data.org.created_at||localOrg.created};
+        }
+      }else{
+        const data=await res.json().catch(()=>({}));
+        setSaveErr(data?.error||`Could not save organization (${res.status}). It will only exist on this device until you retry.`);
+      }
+    }catch(e){
+      setSaveErr("Could not reach the server to save your organization. It will only exist on this device until you retry.");
+    }finally{
+      setSaving(false);
+    }
+
     // Save org profile if AI research was done
     if(orgProfile){
       // Will be saved under org prefix after org is set active
@@ -228,6 +266,7 @@ function OnboardingWizard({onComplete,onSkip}){
           {orgProfile&&<div style={{marginTop:12,display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap"}}>
             {(orgProfile.cause_keywords||[]).slice(0,6).map((k,i)=><span key={i} style={{padding:"2px 8px",borderRadius:10,background:"var(--accent-soft)",color:"var(--accent)",fontSize:10,fontWeight:600}}>{k}</span>)}
           </div>}
+          {saveErr&&<div style={{marginTop:12,fontSize:11,color:"var(--red)",maxWidth:420,margin:"12px auto 0"}}>⚠ {saveErr}</div>}
         </div>}
       </div>
 
@@ -242,7 +281,7 @@ function OnboardingWizard({onComplete,onSkip}){
             {step===0?"Let's Go →":step===4?"Finish Setup →":"Next →"}
           </button>}
           {step===2&&orgProfile&&<button className="btn btn-primary" onClick={()=>setStep(3)}>Next →</button>}
-          {step===5&&<button className="btn btn-primary" onClick={finish}>🚀 Launch CRM</button>}
+          {step===5&&<button className="btn btn-primary" onClick={finish} disabled={saving}>{saving?"Saving...":"🚀 Launch CRM"}</button>}
         </div>
       </div>
     </div>

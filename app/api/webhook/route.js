@@ -8,11 +8,19 @@ import { getDb } from "@/lib/db";
 
 export async function POST(req) {
   try {
+    // Hard-fail if no secret is configured. This endpoint writes donor/donation
+    // data straight into the DB by an org_id the caller supplies — without a
+    // secret requirement, anyone who finds the URL could inject or overwrite
+    // records for any org. No secret configured = no unsigned traffic accepted.
+    const webhookSecret = process.env.WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      console.error("[Webhook] WEBHOOK_SECRET is not set — refusing to process request.");
+      return Response.json({ error: "Webhook secret not configured on server" }, { status: 500 });
+    }
+
     // Authenticate with webhook secret (set in Zapier headers)
     const authHeader = req.headers.get("x-webhook-secret") || req.headers.get("authorization");
-    const webhookSecret = process.env.WEBHOOK_SECRET;
-
-    if (webhookSecret && authHeader !== webhookSecret && authHeader !== `Bearer ${webhookSecret}`) {
+    if (authHeader !== webhookSecret && authHeader !== `Bearer ${webhookSecret}`) {
       return Response.json({ error: "Invalid webhook secret" }, { status: 401 });
     }
 
