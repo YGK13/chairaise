@@ -12,7 +12,11 @@ import {
   limitFor,
   withinLimit,
   isUnlimited,
+  isChaiRaiseSubscription,
 } from "@/lib/plan";
+
+const CHAI_PRICE = "price_1Tko3oK4OdZVtHRP3rG87EU7";
+const sub = (over = {}) => ({ id: "sub_x", items: { data: [] }, metadata: {}, ...over });
 
 describe("isOwnerEmail", () => {
   it("matches the seeded owner email, case-insensitively", () => {
@@ -109,5 +113,34 @@ describe("limits", () => {
         expect(v === null || Number.isFinite(v)).toBe(true);
       }
     }
+  });
+});
+
+describe("isChaiRaiseSubscription (shared Stripe account guard)", () => {
+  it("accepts a subscription on the ChaiRaise price", () => {
+    const s = sub({ items: { data: [{ price: { id: CHAI_PRICE } }] } });
+    expect(isChaiRaiseSubscription(s, CHAI_PRICE)).toBe(true);
+  });
+
+  it("accepts a subscription carrying ChaiRaise metadata (even without price match)", () => {
+    expect(isChaiRaiseSubscription(sub({ metadata: { chairaise_org_id: "ohr" } }), CHAI_PRICE)).toBe(true);
+    expect(isChaiRaiseSubscription(sub({ metadata: { chairaise_plan: "pro" } }), CHAI_PRICE)).toBe(true);
+  });
+
+  it("REJECTS another product's subscription (DueDrill / CBM / etc.)", () => {
+    const dueDrill = sub({ id: "sub_dd", items: { data: [{ price: { id: "price_SomeDueDrillPrice" } }] }, metadata: { duedrill: "annual" } });
+    expect(isChaiRaiseSubscription(dueDrill, CHAI_PRICE)).toBe(false);
+  });
+
+  it("rejects empty / malformed input", () => {
+    expect(isChaiRaiseSubscription(null, CHAI_PRICE)).toBe(false);
+    expect(isChaiRaiseSubscription(undefined, CHAI_PRICE)).toBe(false);
+    expect(isChaiRaiseSubscription(sub(), CHAI_PRICE)).toBe(false);
+    expect(isChaiRaiseSubscription("nope", CHAI_PRICE)).toBe(false);
+  });
+
+  it("falls back to metadata when no priceId is provided at runtime", () => {
+    expect(isChaiRaiseSubscription(sub({ metadata: { chairaise_plan: "pro" } }), undefined)).toBe(true);
+    expect(isChaiRaiseSubscription(sub({ items: { data: [{ price: { id: CHAI_PRICE } }] } }), undefined)).toBe(false);
   });
 });

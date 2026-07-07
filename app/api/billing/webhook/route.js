@@ -6,6 +6,7 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { upsertSubscription } from "@/lib/db";
+import { isChaiRaiseSubscription } from "@/lib/plan";
 
 // Accept either the canonical STRIPE_SECRET_KEY or the STRIPE_SECRET_API_KEY alias.
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_API_KEY;
@@ -31,21 +32,12 @@ async function emailForSubscription(subscription) {
   }
 }
 
-// Persist a Stripe subscription object to our subscriptions table.
-// This Stripe account is shared across all of Yuri's products, so this endpoint
-// receives events for DueDrill, Career Beast Mode, etc. too. Only persist
-// subscriptions that are actually ChaiRaise — matched by our price id or the
-// metadata we stamp at checkout — so other products never pollute our DB.
-function isChaiRaiseSubscription(subscription) {
-  const priceId = process.env.STRIPE_PRO_PRICE_ID;
-  const items = subscription?.items?.data || [];
-  if (priceId && items.some((i) => i?.price?.id === priceId)) return true;
-  if (subscription?.metadata?.chairaise_org_id || subscription?.metadata?.chairaise_plan) return true;
-  return false;
-}
-
+// Persist a Stripe subscription to our table. The Stripe account is shared
+// across all of Yuri's products, so this endpoint receives DueDrill / Career
+// Beast Mode / etc. events too — isChaiRaiseSubscription() (lib/plan.js) gates
+// on our price id + metadata so nothing else can pollute our DB.
 async function persistSubscription(subscription, emailOverride) {
-  if (!isChaiRaiseSubscription(subscription)) {
+  if (!isChaiRaiseSubscription(subscription, process.env.STRIPE_PRO_PRICE_ID)) {
     console.log(`[Billing] Ignoring non-ChaiRaise subscription ${subscription?.id}`);
     return;
   }
