@@ -5,12 +5,29 @@
 import { Resend } from "resend";
 import { getDb } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { rateLimit, keyFromRequest } from "@/lib/rateLimit";
 
 export async function POST(req) {
   try {
     const session = await auth();
     if (!session?.user?.email) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    // Rate limit: 20 sent emails per authenticated user per hour. Higher than
+    // /api/ai because a real user drafting outreach might legitimately send a
+    // handful in a short burst, but low enough that a compromised session
+    // cannot spam-blast from the ChaiRaise sender domain.
+    const rl = await rateLimit({
+      key: keyFromRequest(req, "email", session.user.email),
+      max: 20,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (!rl.ok) {
+      return Response.json(
+        { error: "Too many emails sent recently. Please slow down." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      );
     }
 
     if (!process.env.RESEND_API_KEY) {

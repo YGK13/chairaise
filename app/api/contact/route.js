@@ -5,6 +5,7 @@
 // isn't configured (still returns ok so the UI doesn't look broken).
 // ============================================================
 import { Resend } from "resend";
+import { rateLimit, keyFromRequest } from "@/lib/rateLimit";
 
 // Resend sandbox can only deliver to the account owner's address, which is
 // exactly who should receive sales inquiries. Override via CONTACT_EMAIL once a
@@ -14,6 +15,22 @@ const FROM = process.env.EMAIL_FROM || "onboarding@resend.dev";
 
 export async function POST(req) {
   try {
+    // Rate limit BEFORE we parse the body: the contact form is unauthenticated
+    // and public, which makes it the easiest DoS surface in the app. 5
+    // submissions per IP per hour is well above what a real prospect needs
+    // and hard-caps a bot flood.
+    const rl = await rateLimit({
+      key: keyFromRequest(req, "contact"),
+      max: 5,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (!rl.ok) {
+      return Response.json(
+        { error: "Too many submissions from this IP. Please try again later." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      );
+    }
+
     const body = await req.json().catch(() => ({}));
     const { name = "", email = "", org = "", message = "", plan = "", website } = body;
 

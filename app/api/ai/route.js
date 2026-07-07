@@ -3,6 +3,7 @@
 // API keys are ONLY on the server — never exposed to the client
 // ============================================================
 import { auth } from "@/lib/auth";
+import { rateLimit, keyFromRequest } from "@/lib/rateLimit";
 
 export async function POST(request) {
   try {
@@ -10,6 +11,22 @@ export async function POST(request) {
     const session = await auth();
     if (!session?.user) {
       return Response.json({ error: "Authentication required" }, { status: 401 });
+    }
+
+    // Rate limit: 30 AI calls per authenticated user per hour. Anthropic +
+    // Perplexity bills are the biggest cost-of-abuse target here; a signed-in
+    // user who loops this endpoint at max_tokens can burn through credits
+    // fast. 30/hr is generous for real usage and hard-caps abuse.
+    const rl = await rateLimit({
+      key: keyFromRequest(request, "ai", session.user.email),
+      max: 30,
+      windowMs: 60 * 60 * 1000,
+    });
+    if (!rl.ok) {
+      return Response.json(
+        { error: "Too many AI requests. Please slow down." },
+        { status: 429, headers: { "Retry-After": String(rl.retryAfter) } },
+      );
     }
 
     const body = await request.json();
