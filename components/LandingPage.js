@@ -53,7 +53,7 @@ function StatTile({ label, value, sub, color }) {
 
 function DashboardMock() {
   return (
-    <WindowChrome title="chairaise.com/app — Dashboard">
+    <WindowChrome title="chairaise.com/app — Dashboard · Product preview, sample data">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
         <div>
           <div style={{ fontSize: 15, fontWeight: 800 }}>Welcome back, Sarah</div>
@@ -82,7 +82,7 @@ function DashboardMock() {
 
 function DonorMock() {
   return (
-    <WindowChrome title="Donor — Avery Stone">
+    <WindowChrome title="Donor — Avery Stone · Sample data">
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
         <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg,#f59e0b,#b45309)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#09090b" }}>AS</div>
         <div>
@@ -113,7 +113,7 @@ function DonorMock() {
 
 function EmailMock() {
   return (
-    <WindowChrome title="AI Email Composer">
+    <WindowChrome title="AI Email Composer · Sample data">
       <div style={{ display: "flex", gap: 8, fontSize: 11, color: C.text3, marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${C.border}` }}>
         <span style={{ fontWeight: 600 }}>To:</span> avery@example.org
       </div>
@@ -138,7 +138,7 @@ function NetworkMock() {
     ["Commitment", C.green, ["Taylor Reed"]],
   ];
   return (
-    <WindowChrome title="Pipeline — Kanban">
+    <WindowChrome title="Pipeline — Kanban · Sample data">
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
         {cols.map(([name, color, cards]) => (
           <div key={name}>
@@ -207,7 +207,9 @@ const FAQ = [
 // Count-up animation for the stats band
 // ============================================================
 function useCountUp(target, run) {
-  const [n, setN] = useState(0);
+  // Initialize at the target so server-rendered and pre-scroll views show the
+  // real number, never a wall of zeros. The count-up plays once `run` is true.
+  const [n, setN] = useState(target);
   useEffect(() => {
     if (!run) return;
     let raf, start;
@@ -501,14 +503,16 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ===== TESTIMONIAL ===== */}
+      {/* ===== ORIGIN: honest founder credibility, no anonymous testimonials ===== */}
       <section style={{ borderTop: `1px solid ${C.border}`, padding: "64px 24px", background: "radial-gradient(ellipse 60% 80% at 50% 0%, rgba(245,158,11,0.05), transparent 70%)" }}>
         <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center" }}>
           <div style={{ fontSize: 34, marginBottom: 16 }}>✡️</div>
           <blockquote style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.5, letterSpacing: -0.5, margin: "0 0 18px" }}>
-            &ldquo;We replaced three tools and a spreadsheet with ChaiRaise. The AI knows our donors better than we do — and it shows in what we&apos;re closing.&rdquo;
+            &ldquo;ChaiRaise wasn&apos;t built in a lab. I built it running a live $12M campaign for a
+            360-student Torah institution in Haifa, managing a pipeline of 110+ major donors.
+            Every feature exists because the campaign needed it.&rdquo;
           </blockquote>
-          <p style={{ fontSize: 13, color: C.text3 }}>— Development Director, Major Jewish Organization</p>
+          <p style={{ fontSize: 13, color: C.text3 }}>— Yuri Kruman, founder of ChaiRaise. 3x CHRO, fundraising strategist, executive coach to 2,300+ leaders.</p>
         </div>
       </section>
 
