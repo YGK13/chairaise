@@ -591,6 +591,7 @@ export default function LandingPage() {
           </div>
           <div style={{ display: "flex", gap: 22 }}>
             <a href="mailto:hello@chairaise.com" className="cr-link" style={{ color: C.text3, fontSize: 12, textDecoration: "none" }}>Contact</a>
+            <a href="/security" className="cr-link" style={{ color: C.accent, fontSize: 12, textDecoration: "none", fontWeight: 600 }}>Security</a>
             <a href="/privacy" className="cr-link" style={{ color: C.text3, fontSize: 12, textDecoration: "none" }}>Privacy</a>
             <a href="/terms" className="cr-link" style={{ color: C.text3, fontSize: 12, textDecoration: "none" }}>Terms</a>
           </div>
