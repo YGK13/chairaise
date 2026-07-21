@@ -381,13 +381,9 @@ Provide:
 6. RISK FACTORS: What could go wrong and how to mitigate`;
 
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({
-        model:"claude-sonnet-4-6",max_tokens:2048,
-        messages:[{role:"user",content:prompt}]
-      })});
-      if(!res.ok)throw new Error(`API ${res.status}: ${await res.text()}`);
-      const data=await res.json();
-      setCoachResponse(data.content?.[0]?.text||"No response");
+      // Routed through /api/ai — key stays server-side, donor data stays in-boundary.
+      const text=await callAI(prompt);
+      setCoachResponse(text||"No response");
     }catch(e){setCoachResponse("Error: "+e.message)}
     finally{setLoading(false)}
   };

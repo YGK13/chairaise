@@ -828,17 +828,16 @@ function BatchEmailComposer({donors,apiKey,onSend,onClose}){
   const addTier=(tier)=>setSelected(p=>{const ids=new Set(p.map(d=>d.id||d.name));const add=available.filter(d=>d.tier===tier&&!ids.has(d.id||d.name));return[...p,...add]});
 
   const generateAll=async()=>{
-    if(!apiKey){alert("Set API key in Settings first.");return}
     setLoading(true);
     const t=TEMPLATES.find(x=>x.id===tmpl);
     // Generate a generic template
     const bOrg=getActiveOrg();const bProfile=getOrgProfile();
     const prompt=`You are a fundraising copywriter for ${bOrg.name}${bProfile.mission?" — "+bProfile.mission:""}. Write a compelling outreach email template.\nTemplate: ${t?.name} — ${t?.segment}\nHooks: ${t?.hooks}\n\nWrite the email body with merge fields: {name}, {community}, {city}. 150-200 words. Warm, personal, compelling. End with CTA for a meeting. Sign as "${bOrg.name} Development Team".`;
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1024,messages:[{role:"user",content:prompt}]})});
-      if(!res.ok)throw new Error(`API ${res.status}`);
-      const data=await res.json();
-      setBody(data.content?.[0]?.text||"");
+      // Routed through /api/ai — the API key stays on the server and donor data
+      // never leaves our boundary via an unaudited client-side call.
+      const text=await callAI(prompt);
+      setBody(text||"");
       setSubj((t?.subject||getActiveOrg().name+" — {name}").replace("{School}","").replace("{Synagogue}","").replace("{Family}",""));
     }catch(e){alert("AI Error: "+e.message)}finally{setLoading(false)}
   };

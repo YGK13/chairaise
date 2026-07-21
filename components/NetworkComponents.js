@@ -3,7 +3,7 @@ import {useState,useEffect,useCallback,useRef,useMemo} from "react";
 import {STAGES,TIERS,ACT_TYPES} from "@/lib/constants";
 import {orgPrefix,sGet,sSet,getActiveOrg,fmt$,fmtD,fmtN,initials,appendAudit,getSession} from "@/lib/storage";
 import {parseVCF,parseLinkedInCSV,fuzzyMatchDonor,inferEdges,edgeStrength,bfsPath,buildGraph} from "@/lib/graph";
-import {aiScore} from "@/lib/ai";
+import {aiScore,callAI} from "@/lib/ai";
 
 function NetworkDashboard({donors,graphContacts,setGraphContacts,graphData,setGraphData}){
   const[tab,setTab]=useState("paths"); // paths | contacts | import
@@ -735,16 +735,11 @@ function GmailIntegration({graphContacts,setGraphContacts,donors,rebuildGraph}){
   // -- AI: Extract from pasted email threads --
   const[aiExtracting,setAiExtracting]=useState(false);
   const aiExtractContacts=async()=>{
-    if(!headerText.trim()||!apiKey)return;
+    if(!headerText.trim())return;
     setAiExtracting(true);
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},body:JSON.stringify({
-        model:"claude-sonnet-4-6",max_tokens:2048,
-        messages:[{role:"user",content:`Extract all person names and email addresses from these email headers/threads. Return ONLY a JSON array of objects with "name" and "email" fields. No explanation.\n\nText:\n${headerText.slice(0,8000)}`}]
-      })});
-      if(!res.ok)throw new Error(`API ${res.status}`);
-      const data=await res.json();
-      const text=data.content?.[0]?.text||"";
+      // Routed through /api/ai — key stays server-side, contact data stays in-boundary.
+      const text=await callAI(`Extract all person names and email addresses from these email headers/threads. Return ONLY a JSON array of objects with "name" and "email" fields. No explanation.\n\nText:\n${headerText.slice(0,8000)}`);
       const jsonMatch=text.match(/\[[\s\S]*\]/);
       if(jsonMatch){
         const extracted=JSON.parse(jsonMatch[0]);
