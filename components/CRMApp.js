@@ -7,6 +7,7 @@
 import {useState,useEffect,useCallback,useRef,useMemo,createContext,useContext} from "react";
 import {donorsAPI,donationsAPI,emailAPI,checkDBAvailable} from "@/lib/useData";
 import {PlanProvider,usePlan,ProGate,ProBadge,FEAT} from "@/components/PlanGate";
+import {EmailConnectPanel,DataPrivacyPanel,WhatsAppButton} from "@/components/TrustPanels";
 
 // Shared modules (extracted from monolith)
 import {DEFAULT_TEMPLATES,DEFAULT_COMMUNITY_MAP,STAGES,TIERS,NAV,DONOR_FIELDS,FIELD_GROUPS,ACT_TYPES,ORG_TYPES,DEFAULT_ORG,EMPTY_ORG_PROFILE,ROLES,TAG_COLORS} from "@/lib/constants";
@@ -1600,6 +1601,8 @@ function DonorDetail({donor:d,acts,notes,donors:allDonors,onClose,onNote,onStage
           <div style={{display:"flex",gap:8,marginBottom:16}}>
             <select className="form-select" value={d.pipeline_stage||"not_started"} onChange={e=>onStage(d.id||d.name,e.target.value)} style={{flex:1,padding:"8px 10px"}}>{STAGES.map(s=><option key={s.id} value={s.id}>{s.label}</option>)}</select>
             <button className="btn btn-primary" onClick={()=>onCompose(d)}>✉️ Compose</button>
+            {/* Click-to-chat: opens the fundraiser's own WhatsApp, logs the touch */}
+            <WhatsAppButton donor={d} org={getActiveOrg()} onLogged={(dn)=>onLogActivity&&onLogActivity({did:dn.id||dn.name,type:"whatsapp",summary:"WhatsApp opened from donor record",date:new Date().toISOString()})}/>
           </div>
           <div className="intel-grid">
             <div className="intel-card"><div className="il">Net Worth</div><div className="iv">{fmt$(d.net_worth)}</div></div>
@@ -2995,6 +2998,11 @@ function Settings({donors,acts,notes,deals,waBridge,setWaBridge}){
   return(<div className="content-scroll"><div className="settings-page">
     <h2 style={{fontSize:18,fontWeight:700,marginBottom:16}}>Settings</h2>
 
+    {/* Bring-your-own mailbox + data rights (see components/TrustPanels.js) */}
+    <EmailConnectPanel orgId={getActiveOrg().id}/>
+    <DataPrivacyPanel orgId={getActiveOrg().id}/>
+
+
     {/* AI Status — keys are now server-side only */}
     <div className="settings-section">
       <h4>🧠 AI Configuration</h4>
@@ -3499,8 +3507,27 @@ function AppInner(){
   }
 
   if(!donors&&!showWizard)return <DataLoader onLoad={loadData}/>;
-  if(!donors&&showWizard)return <OnboardingWizard onComplete={handleWizardComplete} onSkip={()=>{
-    // Skip setup → start from scratch with an empty donor list (no demo data)
+  if(!donors&&showWizard)return <OnboardingWizard onComplete={handleWizardComplete} onSkip={async()=>{
+    // Skip setup → start empty, but STILL register an organization server-side.
+    // Org-scoped APIs (donors, email, export) require a real membership row;
+    // without one every request is correctly refused as org_forbidden.
+    const who=session?.name||session?.email?.split("@")[0]||"My";
+    const base=`${who}'s Organization`;
+    const register=async(name)=>fetch("/api/orgs",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name})});
+    try{
+      let res=await register(base);
+      // Org ids are derived from the name, so a generic name can collide with
+      // another account's org. Retry once with a short suffix if it does.
+      if(res.status===409)res=await register(`${base} ${Math.random().toString(36).slice(2,6)}`);
+      if(res.ok){
+        const d=await res.json();
+        if(d?.org?.id){
+          const list=getOrgList();
+          if(!list.find(o=>o.id===d.org.id))setOrgList([...list,d.org]);
+          setActiveOrg({...DEFAULT_ORG,...d.org,created:d.org.created_at||new Date().toISOString()});
+        }
+      }
+    }catch(e){console.warn("Skip-setup org registration failed:",e.message)}
     loadData([]);
     setShowWizard(false);
   }}/>;
