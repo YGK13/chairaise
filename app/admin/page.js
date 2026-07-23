@@ -6,6 +6,11 @@
 // (amber), every number set in JetBrains Mono like an instrument readout, and a
 // live signup feed as the thing you actually watch. Data comes from the
 // owner-gated /api/admin/stats; a non-owner gets an access screen, never data.
+//
+// Sections, top to bottom:
+//   Vitals · Signups + plan + usage | live signup feed
+//   Activation funnel | Active users + demographics
+//   People (every account, activated or stalled) · Activity stream · Orgs
 // ============================================================
 import { useEffect, useState, useCallback } from "react";
 
@@ -18,6 +23,7 @@ const mono = "'JetBrains Mono', ui-monospace, monospace";
 
 const fmtInt = (n) => (n ?? 0).toLocaleString("en-US");
 const fmtUsd = (cents) => "$" + Math.round((Number(cents) || 0) / 100).toLocaleString("en-US");
+const pct = (n, d) => (d > 0 ? Math.round((n / d) * 100) : 0);
 function ago(iso) {
   if (!iso) return "—";
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -27,11 +33,36 @@ function ago(iso) {
   return `${Math.floor(s / 86400)}d ago`;
 }
 
+// How each tracked event renders in the activity stream.
+const EVENT_META = {
+  signup: { label: "Signed up", color: C.amber },
+  login: { label: "Signed in", color: C.blue },
+  org_created: { label: "Created org", color: C.green },
+  donor_added: { label: "Added donor", color: C.green },
+  donation_added: { label: "Logged gift", color: C.green },
+  email_sent: { label: "Sent email", color: C.text },
+  whatsapp_click: { label: "WhatsApp", color: C.green },
+  ai_used: { label: "Used AI", color: C.amber },
+  data_export: { label: "Exported data", color: C.dim },
+  account_deleted: { label: "Deleted account", color: C.red },
+  checkout_started: { label: "Started checkout", color: C.amber },
+  subscribed: { label: "Subscribed", color: C.green },
+};
+
+// Activation funnel stages, in order (keys match /api/admin/stats funnel).
+const FUNNEL = [
+  { key: "signed_up", label: "Signed up" },
+  { key: "activated", label: "Created an org" },
+  { key: "added_donor", label: "Added a donor" },
+  { key: "logged_donation", label: "Logged a gift" },
+  { key: "sent_outreach", label: "Sent outreach" },
+];
+
 export default function AdminConsole() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState("loading"); // loading | ok | forbidden | error
   const [err, setErr] = useState("");
-  const [tick, setTick] = useState(0); // re-render for relative times
+  const [, setTick] = useState(0); // re-render for relative times
 
   const load = useCallback(async () => {
     try {
@@ -55,9 +86,11 @@ export default function AdminConsole() {
   if (status === "loading" || !data) return <Gate title="ChaiRaise Ops" body="Reading telemetry…" spin />;
 
   const t = data.totals || {};
+  const f = data.funnel || {};
   const proActive = (data.plan_mix || []).filter((p) => p.plan === "pro" && (p.status === "active" || p.status === "trialing")).reduce((s, p) => s + p.n, 0);
   const mrr = proActive * 149;
   const maxDay = Math.max(1, ...(data.signups_by_day || []).map((d) => d.n));
+  const funnelBase = f.signed_up || 0;
 
   return (
     <div style={{ background: C.bg, color: C.text, minHeight: "100vh", fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -67,9 +100,11 @@ export default function AdminConsole() {
         .ops-vitals { display:grid; grid-template-columns:repeat(5,1fr); gap:1px; background:${C.line}; border:1px solid ${C.line}; border-radius:14px; overflow:hidden; }
         .ops-cols { display:grid; grid-template-columns:1.35fr 1fr; gap:16px; margin-top:16px; }
         .ops-bar { transition:height .5s cubic-bezier(.2,.7,.3,1); }
+        .ops-fbar { transition:width .6s cubic-bezier(.2,.7,.3,1); }
         .ops-feed-row:first-child .ops-dot { box-shadow:0 0 0 0 rgba(245,158,11,.6); animation:opsPulse 2s infinite; }
         @keyframes opsPulse { 70%{ box-shadow:0 0 0 8px rgba(245,158,11,0); } 100%{ box-shadow:0 0 0 0 rgba(245,158,11,0); } }
         @keyframes opsSpin { to { transform:rotate(360deg); } }
+        .ops-people tr:hover td { background:${C.panel2}; }
         @media (max-width:880px){ .ops-vitals{ grid-template-columns:repeat(2,1fr); } .ops-cols{ grid-template-columns:1fr; } .ops-hide-sm{ display:none; } }
       `}</style>
 
@@ -163,6 +198,130 @@ export default function AdminConsole() {
           </Panel>
         </div>
 
+        {/* activation funnel | active users + demographics */}
+        <div className="ops-cols">
+          <Panel title="Activation funnel" right={<span style={{ fontFamily: mono, fontSize: 11, color: C.faint }}>signup → outreach</span>}>
+            {funnelBase === 0 ? (
+              <Empty>No accounts yet. Each stage below fills as users sign up and go deeper.</Empty>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 4 }}>
+                {FUNNEL.map((stage, i) => {
+                  const n = f[stage.key] || 0;
+                  const ofBase = pct(n, funnelBase);
+                  const prev = i === 0 ? n : (f[FUNNEL[i - 1].key] || 0);
+                  const step = i === 0 ? 100 : pct(n, prev);
+                  return (
+                    <div key={stage.key}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 5 }}>
+                        <span style={{ fontSize: 13, color: C.text }}>{stage.label}</span>
+                        <span style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+                          <span className="ops-num" style={{ fontWeight: 700, fontSize: 14 }}>{fmtInt(n)}</span>
+                          <span style={{ fontFamily: mono, fontSize: 10, color: C.faint, width: 34, textAlign: "right" }}>{ofBase}%</span>
+                        </span>
+                      </div>
+                      <div style={{ height: 8, background: C.panel2, borderRadius: 5, overflow: "hidden" }}>
+                        <div className="ops-fbar" style={{ width: `${Math.max(ofBase, n > 0 ? 2 : 0)}%`, height: "100%", background: C.amber, opacity: 1 - i * 0.13, borderRadius: 5 }} />
+                      </div>
+                      {i > 0 && (
+                        <div style={{ fontFamily: mono, fontSize: 10, color: step < 50 ? C.red : C.faint, marginTop: 3 }}>
+                          {step}% of previous step{step < 50 ? "   · drop-off" : ""}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Panel>
+
+          <div>
+            <Panel title="Active users">
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+                <Mini label="Today" value={fmtInt(t.active_24h)} />
+                <Mini label="7 days" value={fmtInt(t.active_7d)} />
+                <Mini label="30 days" value={fmtInt(t.active_30d)} />
+              </div>
+              <p style={{ fontSize: 10.5, color: C.faint, margin: "12px 0 0", lineHeight: 1.5 }}>Distinct accounts that signed in within each window.</p>
+            </Panel>
+
+            <Panel title="Demographics" style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 10, color: C.faint, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 8 }}>By sign-in method</div>
+              <BarList
+                rows={(data.by_provider || []).map((p) => ({ label: p.provider === "google" ? "Google" : "Email / password", n: p.n }))}
+                color={C.blue}
+                empty="No accounts yet."
+              />
+              <div style={{ fontSize: 10, color: C.faint, textTransform: "uppercase", letterSpacing: 0.6, margin: "16px 0 8px" }}>By organization type</div>
+              <BarList
+                rows={(data.by_org_type || []).map((o) => ({ label: o.org_type, n: o.n }))}
+                color={C.amber}
+                empty="No organizations yet."
+              />
+            </Panel>
+          </div>
+        </div>
+
+        {/* PEOPLE — every account, activated or stalled */}
+        <Panel title="People" style={{ marginTop: 16 }} right={<span style={{ fontFamily: mono, fontSize: 11, color: C.faint }}>{fmtInt((data.people || []).length)} accounts</span>} noPad>
+          {(data.people || []).length === 0 ? (
+            <div style={{ padding: 20 }}><Empty>No accounts yet.</Empty></div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table className="ops-people" style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ color: C.faint, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.6 }}>
+                    <Th left>Person</Th><Th>Method</Th><Th>State</Th><Th>Organization</Th><Th num>Donors</Th><Th num>Signed up</Th><Th num>Last active</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.people.map((p, i) => (
+                    <tr key={i} style={{ borderTop: `1px solid ${C.line}` }}>
+                      <Td left>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }}>{p.name || p.email.split("@")[0]}</span>
+                          {p.is_owner && <Tag color={C.amber}>owner</Tag>}
+                        </div>
+                        <div style={{ fontFamily: mono, fontSize: 11, color: C.dim }}>{p.email}</div>
+                      </Td>
+                      <Td dim style={{ textTransform: "capitalize" }}>{p.provider === "google" ? "Google" : "Email"}</Td>
+                      <Td>
+                        {p.activated
+                          ? <Tag color={C.green}>activated</Tag>
+                          : <Tag color={C.amber} soft>not activated</Tag>}
+                      </Td>
+                      <Td dim>{p.org_name || <span style={{ color: C.faint }}>— no org —</span>}</Td>
+                      <Td num accent={p.donors > 0}>{fmtInt(p.donors)}</Td>
+                      <Td num dim>{p.created_at ? new Date(p.created_at).toISOString().slice(0, 10) : "—"}</Td>
+                      <Td num dim>{ago(p.last_login)}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Panel>
+
+        {/* ACTIVITY STREAM — the raw event log */}
+        <Panel title="Activity stream" style={{ marginTop: 16 }} right={<span style={{ fontFamily: mono, fontSize: 11, color: C.faint }}>latest {fmtInt((data.event_feed || []).length)} events</span>} noPad>
+          {(data.event_feed || []).length === 0 ? (
+            <div style={{ padding: 20 }}><Empty>No events recorded yet. Signups, sign-ins and org creation appear here the moment they happen.</Empty></div>
+          ) : (
+            <div style={{ maxHeight: 360, overflowY: "auto" }}>
+              {data.event_feed.map((e, i) => {
+                const m = EVENT_META[e.event] || { label: e.event, color: C.dim };
+                return (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 16px", borderTop: i ? `1px solid ${C.line}` : "none" }}>
+                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: m.color, width: 120, flexShrink: 0 }}>{m.label}</span>
+                    <span style={{ fontFamily: mono, fontSize: 11.5, color: C.dim, flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.email || "—"}{e.org_id ? `  ·  ${e.org_id}` : ""}</span>
+                    <span style={{ fontFamily: mono, fontSize: 11, color: C.faint, flexShrink: 0 }}>{ago(e.created_at)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Panel>
+
         {/* orgs table */}
         <Panel title="Organizations" style={{ marginTop: 16 }} right={<span style={{ fontFamily: mono, fontSize: 11, color: C.faint }}>by donor count</span>} noPad>
           {(data.top_orgs || []).length === 0 ? (
@@ -237,14 +396,39 @@ function Mini({ label, value }) {
     </div>
   );
 }
+// Horizontal labeled bars — used for demographic breakdowns.
+function BarList({ rows, color, empty }) {
+  if (!rows || rows.length === 0) return <Empty>{empty}</Empty>;
+  const max = Math.max(1, ...rows.map((r) => r.n));
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      {rows.map((r, i) => (
+        <div key={i}>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+            <span style={{ color: C.text, textTransform: "capitalize", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 180 }}>{r.label}</span>
+            <span className="ops-num" style={{ fontWeight: 700, color: C.dim }}>{fmtInt(r.n)}</span>
+          </div>
+          <div style={{ height: 6, background: C.panel2, borderRadius: 4, overflow: "hidden" }}>
+            <div className="ops-fbar" style={{ width: `${(r.n / max) * 100}%`, height: "100%", background: color, borderRadius: 4 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+function Tag({ children, color, soft }) {
+  return (
+    <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, color, border: `1px solid ${color}`, background: soft ? "transparent" : `${color}1a`, borderRadius: 5, padding: "2px 6px", whiteSpace: "nowrap" }}>{children}</span>
+  );
+}
 function Empty({ children }) {
   return <p style={{ fontSize: 13, color: C.faint, lineHeight: 1.6, margin: 0 }}>{children}</p>;
 }
 function Th({ children, num, left }) {
   return <th style={{ textAlign: num ? "right" : "left", padding: left ? "10px 16px" : "10px 12px", fontWeight: 600 }}>{children}</th>;
 }
-function Td({ children, num, left, dim, accent }) {
-  return <td style={{ textAlign: num ? "right" : "left", padding: left ? "11px 16px" : "11px 12px", color: accent ? C.amber : dim ? C.faint : C.text, fontFamily: num ? mono : "inherit", fontWeight: num ? 700 : 400, whiteSpace: "nowrap" }}>{children}</td>;
+function Td({ children, num, left, dim, accent, style }) {
+  return <td style={{ textAlign: num ? "right" : "left", padding: left ? "11px 16px" : "11px 12px", color: accent ? C.amber : dim ? C.faint : C.text, fontFamily: num ? mono : "inherit", fontWeight: num ? 700 : 400, whiteSpace: "nowrap", ...style }}>{children}</td>;
 }
 function Gate({ title, body, retry, spin }) {
   return (

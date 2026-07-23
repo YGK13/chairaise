@@ -5,6 +5,7 @@
 // ============================================================
 import { getDb } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { logEvent, EVENTS } from "@/lib/track";
 
 // ---- GET: List organizations ----
 export async function GET(req) {
@@ -104,6 +105,10 @@ export async function POST(req) {
       INSERT INTO audit_log (org_id, user_name, type, action, detail)
       VALUES (${orgId}, ${session.user.name || session.user.email}, 'system', 'Organization registered', ${name})
     `;
+
+    // Activation signal — the single biggest step in the funnel (a signed-up
+    // account becoming a real tenant). Fire-and-forget, never blocks the reply.
+    logEvent({ email: session.user.email, orgId, event: EVENTS.ORG_CREATED, provider: session.user.provider || "credentials", meta: { name, org_type } });
 
     return Response.json({ org }, { status: 201 });
   } catch (error) {
