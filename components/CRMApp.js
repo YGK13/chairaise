@@ -5,7 +5,7 @@
 // ============================================================
 
 import {useState,useEffect,useCallback,useRef,useMemo,createContext,useContext} from "react";
-import {donorsAPI,donationsAPI,emailAPI,checkDBAvailable} from "@/lib/useData";
+import {donorsAPI,donationsAPI,emailAPI,orgsAPI,checkDBAvailable} from "@/lib/useData";
 import {PlanProvider,usePlan,ProGate,ProBadge,FEAT} from "@/components/PlanGate";
 import {EmailConnectPanel,DataPrivacyPanel,WhatsAppButton} from "@/components/TrustPanels";
 
@@ -3163,23 +3163,48 @@ function AppInner(){
   const[useDB,setUseDB]=useState(false); // true when Neon DB is available
   const[dbLoading,setDbLoading]=useState(true);
 
-  // On mount: check if DB is available and load donors from it
+  // On mount: check if DB is available, resolve the user's server-side org,
+  // and load its donors.
+  //
+  // The app is localStorage-first: getActiveOrg() defaults to the demo org
+  // (DEFAULT_ORG, id "chairaise_default"). A returning user whose organization
+  // lives only in the database (created server-side, e.g. via bulk import) would
+  // otherwise never see their data — the client would query donors for the demo
+  // org id, get denied, and drop into onboarding. So before listing donors we
+  // fetch /api/orgs (the caller's real memberships) and switch the active org to
+  // one of them, seeding the org switcher too.
   useEffect(()=>{
-    const org=getActiveOrg();
     (async()=>{
       try{
         const available=await checkDBAvailable();
         setUseDB(available);
-        if(available){
-          const dbDonors=await donorsAPI.list(org.id);
-          if(dbDonors&&dbDonors.length>0){
-            setDonors(dbDonors);
-          }else if(!dbDonors){
-            // DB not configured — use localStorage
-            setUseDB(false);
+        if(!available){setDbLoading(false);return}
+
+        let org=getActiveOrg();
+        try{
+          const res=await orgsAPI.list();
+          const dbOrgs=(res&&res.orgs)||[];
+          if(dbOrgs.length>0){
+            // Keep the current active org if the user is actually a member;
+            // otherwise adopt their first DB org.
+            const match=dbOrgs.find(o=>o.id===org.id)||dbOrgs[0];
+            const norm={...DEFAULT_ORG,...match,
+              accentColor:match.accent_color||match.accentColor||DEFAULT_ORG.accentColor,
+              created:match.created_at||new Date().toISOString()};
+            setActiveOrg(norm);
+            setOrgList(dbOrgs.map(o=>({...DEFAULT_ORG,...o,
+              accentColor:o.accent_color||o.accentColor||DEFAULT_ORG.accentColor})));
+            org=norm;
           }
-          // If DB has no donors but localStorage does, offer migration
-          // (handled in UI below)
+        }catch(e){console.warn("Org hydration failed, keeping active org:",e.message)}
+
+        const dbDonors=await donorsAPI.list(org.id);
+        if(dbDonors&&dbDonors.length>0){
+          setDonors(dbDonors);
+          setShowWizard(false);   // real data exists → never show onboarding
+        }else if(!dbDonors){
+          // DB not configured / access denied — use localStorage
+          setUseDB(false);
         }
       }catch(e){console.warn("DB check failed, using localStorage:",e.message);setUseDB(false)}
       finally{setDbLoading(false)}
@@ -3505,6 +3530,16 @@ function AppInner(){
       </div>
     </div>);
   }
+
+  // While the DB check + org hydration is in flight, hold on a loader so a
+  // server-side org (and its donors) can resolve before we'd otherwise flash
+  // the onboarding wizard or the empty-data importer.
+  if(dbLoading&&!donors)return(<div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",color:"var(--text)",fontFamily:"Inter,system-ui,sans-serif"}}>
+    <div style={{textAlign:"center"}}>
+      <div style={{width:56,height:56,background:"var(--accent)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:20,color:"var(--bg)",margin:"0 auto 16px"}}>CR</div>
+      <div style={{fontSize:14,color:"var(--text3)"}}>Loading your organization...</div>
+    </div>
+  </div>);
 
   if(!donors&&!showWizard)return <DataLoader onLoad={loadData}/>;
   if(!donors&&showWizard)return <OnboardingWizard onComplete={handleWizardComplete} onSkip={async()=>{
