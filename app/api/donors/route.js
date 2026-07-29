@@ -7,6 +7,7 @@ import { getDb, getSubscriptionByEmail } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { resolvePlan, limitFor } from "@/lib/plan";
 import { denyIfNoOrgAccess } from "@/lib/authz";
+import { logEvent, EVENTS } from "@/lib/track";
 
 // Resolve the caller's plan authoritatively (owner allowlist → subscription → starter).
 async function planForSession(session) {
@@ -112,6 +113,9 @@ export async function POST(req) {
       )
       RETURNING *
     `;
+
+    // Usage signal — first-donor is a key activation step in the funnel.
+    logEvent({ email: session?.user?.email, orgId: org_id, event: EVENTS.DONOR_ADDED, meta: { tier } });
 
     return Response.json({ donor }, { status: 201 });
   } catch (error) {

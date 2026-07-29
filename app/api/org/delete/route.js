@@ -12,6 +12,7 @@
 import { auth } from "@/lib/auth";
 import { denyIfNoOrgAccess } from "@/lib/authz";
 import { getDb } from "@/lib/db";
+import { logEvent, EVENTS } from "@/lib/track";
 
 export async function POST(req) {
   try {
@@ -57,6 +58,11 @@ export async function POST(req) {
 
     // Deliberately logged to stdout only — the audit table for this org is gone.
     console.log(`[Erasure] org ${org_id} permanently deleted by ${session?.user?.email}:`, deleted);
+
+    // Churn signal for the owner console. Privacy-first: we record that AN org
+    // was erased (org id + row counts) but NOT the erasing user's email — this
+    // is a GDPR/CCPA deletion, so we don't retain their PII in the event stream.
+    logEvent({ email: null, orgId: org_id, event: EVENTS.ACCOUNT_DELETED, meta: { rows_removed: deleted } });
 
     return Response.json({
       deleted: true,

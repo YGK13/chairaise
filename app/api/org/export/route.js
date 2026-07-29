@@ -10,6 +10,7 @@
 import { auth } from "@/lib/auth";
 import { denyIfNoOrgAccess } from "@/lib/authz";
 import { getDb } from "@/lib/db";
+import { logEvent, EVENTS } from "@/lib/track";
 
 export async function GET(req) {
   try {
@@ -75,6 +76,10 @@ export async function GET(req) {
         audit_log: auditLog,
       },
     };
+
+    // Trust signal — the org exercised data portability. Useful churn/trust
+    // context in the owner console (often precedes a migration or cancellation).
+    logEvent({ email: session?.user?.email, orgId, event: EVENTS.DATA_EXPORT, meta: { donors: donors.length, donations: donations.length } });
 
     const stamp = new Date().toISOString().slice(0, 10);
     return new Response(JSON.stringify(payload, null, 2), {

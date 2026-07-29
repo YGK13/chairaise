@@ -4,6 +4,7 @@
 // ============================================================
 import { auth } from "@/lib/auth";
 import { rateLimit, keyFromRequest } from "@/lib/rateLimit";
+import { logEvent, EVENTS } from "@/lib/track";
 
 export async function POST(request) {
   try {
@@ -93,6 +94,9 @@ export async function POST(request) {
       const data = await res.json();
       result = data.content?.[0]?.text || "";
     }
+
+    // Usage signal — AI is the product's core value; track adoption.
+    logEvent({ email: session.user.email, event: EVENTS.AI_USED, meta: { provider: provider || "anthropic" } });
 
     return Response.json({ result });
   } catch (error) {

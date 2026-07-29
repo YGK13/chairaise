@@ -7,6 +7,7 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { upsertSubscription } from "@/lib/db";
 import { isChaiRaiseSubscription } from "@/lib/plan";
+import { logEvent, EVENTS } from "@/lib/track";
 
 // Accept either the canonical STRIPE_SECRET_KEY or the STRIPE_SECRET_API_KEY alias.
 const STRIPE_KEY = process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_API_KEY;
@@ -116,6 +117,19 @@ export async function POST(req) {
         const subscription = event.data.object;
         console.log(`[Billing] Subscription ${subscription.id} ${event.type.split(".").pop()}: status=${subscription.status}`);
         await persistSubscription(subscription);
+        // Revenue signal — emit SUBSCRIBED once, on creation, for our own subs
+        // only (the Stripe account is shared across products). Fires for both
+        // trialing and active starts; not on later updates.
+        if (event.type === "customer.subscription.created"
+            && isChaiRaiseSubscription(subscription, process.env.STRIPE_PRO_PRICE_ID)) {
+          const subEmail = await emailForSubscription(subscription);
+          logEvent({
+            email: subEmail,
+            orgId: subscription.metadata?.chairaise_org_id || null,
+            event: EVENTS.SUBSCRIBED,
+            meta: { plan: subscription.metadata?.chairaise_plan || "pro", status: subscription.status },
+          });
+        }
         break;
       }
 

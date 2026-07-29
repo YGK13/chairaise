@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
 import { isOwnerEmail, resolvePlan, planMeta } from "@/lib/plan";
 import { getSubscriptionByEmail } from "@/lib/db";
+import { logEvent, EVENTS } from "@/lib/track";
 
 // Accept either the canonical STRIPE_SECRET_KEY or the STRIPE_SECRET_API_KEY
 // alias (matches how it was provisioned in Vercel). Canonical wins if both set.
@@ -123,6 +124,10 @@ export async function POST(req) {
         },
       },
     });
+
+    // Revenue signal — a user reached the Stripe checkout for Pro. The webhook
+    // later emits SUBSCRIBED when the trial/subscription actually starts.
+    logEvent({ email: session.user.email, orgId: orgId || null, event: EVENTS.CHECKOUT_STARTED, meta: { plan: plan || "pro" } });
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {

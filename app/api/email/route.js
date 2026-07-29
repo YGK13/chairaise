@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { rateLimit, keyFromRequest } from "@/lib/rateLimit";
 import { denyIfNoOrgAccess } from "@/lib/authz";
 import { sendViaOrgSmtp } from "@/lib/mailer";
+import { logEvent, EVENTS } from "@/lib/track";
 
 export async function POST(req) {
   try {
@@ -119,6 +120,9 @@ export async function POST(req) {
         console.warn("Failed to log email to DB:", dbErr.message);
       }
     }
+
+    // Usage signal — real donor outreach sent (deepest activation step).
+    logEvent({ email: session.user.email, orgId: org_id || null, event: EVENTS.EMAIL_SENT, meta: { via: sent.via } });
 
     return Response.json({
       success: true,

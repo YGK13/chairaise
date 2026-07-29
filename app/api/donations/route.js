@@ -6,6 +6,7 @@
 import { getDb } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { denyIfNoOrgAccess } from "@/lib/authz";
+import { logEvent, EVENTS } from "@/lib/track";
 
 export async function GET(req) {
   try {
@@ -117,6 +118,9 @@ export async function POST(req) {
         ${'Donation: $' + parseInt(amount).toLocaleString() + (campaign ? ' (' + campaign + ')' : '')},
         ${date || new Date().toISOString()})
     `;
+
+    // Usage signal — a logged gift is deep-funnel activation (money is moving).
+    logEvent({ email: session?.user?.email, orgId: org_id, event: EVENTS.DONATION_ADDED, meta: { amount: parseInt(amount) || 0, currency } });
 
     return Response.json({ donation }, { status: 201 });
   } catch (error) {
