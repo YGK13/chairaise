@@ -1,0 +1,59 @@
+# Regenerates package-lock.json on Ubuntu and commits the result.
+#
+# Why this exists: the lockfile has to satisfy `npm ci` on ubuntu-latest, but it
+# is usually regenerated on Yuri's Windows machine. npm resolves platform-gated
+# optional dependencies for the host it runs on, so a Windows-generated lock
+# omits the Linux-only packages the runner needs (@emnapi/core, @emnapi/runtime,
+# pulled in through the wasm32-wasi fallbacks of sharp and Tailwind's oxide).
+# The result is a lock that installs perfectly on Windows and fails `npm ci` on
+# every CI run, which is exactly how this repo sat red from 2026-07-08.
+#
+# `npm install --package-lock-only --os=linux --cpu=x64` does NOT fix this from
+# Windows: those flags filter which optional deps are considered installable,
+# they do not make npm fetch a foreign platform's dependency graph. The only
+# reliable fix is to generate the lock on the platform CI runs on, which is what
+# this workflow does.
+#
+# Run it whenever `npm ci` fails on CI with "Missing: <pkg> from lock file":
+#   gh workflow run "Resync lockfile (linux)" -R YGK13/chairaise
+name: Resync lockfile (linux)
+
+on:
+  workflow_dispatch:
+
+# The job's whole purpose is to commit the regenerated lock back to the branch.
+permissions:
+  contents: write
+
+jobs:
+  resync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      # --package-lock-only rewrites the lock without building node_modules, so
+      # this stays fast and cannot be polluted by a partial install.
+      - name: Regenerate lockfile
+        run: npm install --package-lock-only
+
+      # Proves the regenerated lock actually satisfies the command that was
+      # failing, before it is committed. Without this the workflow could happily
+      # commit a lock that fails CI for a different reason.
+      - name: Verify npm ci succeeds
+        run: npm ci
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile already in sync. Nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "fix(ci): resync package-lock on linux so npm ci passes"
+          git push
