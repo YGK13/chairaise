@@ -1,4 +1,5 @@
 import './globals.css';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || 'https://chairaise.com'),
@@ -19,6 +20,7 @@ export default function RootLayout({ children }) {
       <body>
         <a href="#main-content" className="skip-link">Skip to main content</a>
         {children}
+        <Analytics />
       </body>
     </html>
   );
