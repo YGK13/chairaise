@@ -119,6 +119,7 @@ The homepage, structured data, sitemap, robots and `llms.txt` all read from one 
 ```bash
 npm test          # vitest run (CI runs this on every push and PR)
 npm run test:watch
+npm run lint      # eslint . (flat config in eslint.config.mjs)
 ```
 
 Unit tests cover the security- and money-critical libraries: plan resolution and entitlements (`plan.test.js`), CSV round-tripping (`csv.test.js`), the donor graph (`graph.test.js`), AI helpers (`ai.test.js`), shared constants (`constants.test.js`), and the public marketing contract (`marketing.test.js`: pricing-to-plan parity, FAQ, JSON-LD, sitemap/robots, llms.txt).

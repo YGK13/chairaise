@@ -300,16 +300,16 @@ export default function LandingPage() {
   const [openFaq, setOpenFaq] = useState(0);
   const [contactPlan, setContactPlan] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [js, setJs] = useState(false);
   const rootRef = useRef(null);
   const active = SAMPLES.find((s) => s.key === tab) || SAMPLES[0];
   const closeContact = useCallback(() => setContactPlan(null), []);
 
   // Reveal-on-scroll. Content is fully visible until JS runs, then animates in.
   useEffect(() => {
-    setJs(true);
     const root = rootRef.current;
-    if (!root || typeof IntersectionObserver === "undefined") return;
+    if (!root) return;
+    root.classList.add("cr-js");
+    if (typeof IntersectionObserver === "undefined") return;
     const els = root.querySelectorAll(".cr-reveal");
     const io = new IntersectionObserver((entries) => {
       entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("is-in"); io.unobserve(en.target); } });
@@ -323,7 +323,7 @@ export default function LandingPage() {
     : <Link key={href} className="cr-link" href={href} onClick={onClick}>{label}</Link>);
 
   return (
-    <div ref={rootRef} className={`cr-root${js ? " cr-js" : ""}`}>
+    <div ref={rootRef} className="cr-root">
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
       {/* ===== NAV ===== */}

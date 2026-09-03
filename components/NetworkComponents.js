@@ -1,5 +1,5 @@
 "use client";
-import {useState,useEffect,useCallback,useRef,useMemo} from "react";
+import {Fragment,useState,useEffect,useCallback,useRef,useMemo} from "react";
 import {STAGES,TIERS,ACT_TYPES} from "@/lib/constants";
 import {orgPrefix,sGet,sSet,getActiveOrg,fmt$,fmtD,fmtN,initials,appendAudit,getSession} from "@/lib/storage";
 import {parseVCF,parseLinkedInCSV,fuzzyMatchDonor,inferEdges,edgeStrength,bfsPath,buildGraph} from "@/lib/graph";
@@ -319,10 +319,10 @@ function NetworkDashboard({donors,graphContacts,setGraphContacts,graphData,setGr
             {path.map((step,j)=>{
               const name=nodeName(step.nodeId);
               const isTarget=j===path.length-1;
-              return(<React.Fragment key={j}>
+              return(<Fragment key={j}>
                 <span className="net-path-arrow">→</span>
                 <span className={"net-path-node "+(isTarget?"donor":"contact")}>{isTarget?"🎯":"🔗"} {name}</span>
-              </React.Fragment>);
+              </Fragment>);
             })}
           </div>
 

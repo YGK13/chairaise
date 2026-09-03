@@ -1,6 +1,7 @@
 import './globals.css';
+import { SITE } from '@/content/site';
 
-const SITE_URL = 'https://chairaise.com';
+const SITE_URL = SITE.url;
 
 export const metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || SITE_URL),
@@ -8,8 +9,7 @@ export const metadata = {
     default: 'ChaiRaise: AI Donor Letters, Appeals & CRM for Nonprofits',
     template: '%s | ChaiRaise',
   },
-  description:
-    'AI fundraising copilot and donor CRM for nonprofits. Draft personalized donor letters, appeals and outreach in minutes, score donor fit, suggest the ask and track gifts. Free for 100 donors.',
+  description: SITE.description,
   applicationName: 'ChaiRaise',
   authors: [{ name: 'Yuri Kruman', url: 'https://yurikruman.com' }],
   creator: 'Yuri Kruman',

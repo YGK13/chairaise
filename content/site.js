@@ -17,7 +17,7 @@ export const SITE = {
   valueProp:
     "ChaiRaise is the AI fundraising copilot and donor CRM for nonprofits and Jewish community organizations: it drafts personalized donor letters, appeals and outreach from your own donor records, suggests the ask, and tracks every relationship through a 10-stage pipeline.",
   description:
-    "AI fundraising copilot and donor CRM for nonprofits. Draft personalized donor letters, appeals and outreach in minutes, score donor fit, suggest the ask and track gifts. Free for 100 donors.",
+    "AI fundraising copilot and donor CRM for nonprofits. Donor letters, appeals and outreach drafted in minutes, with suggested asks. Free for 100 donors.",
   contactEmail: "hello@chairaise.com",
   lastUpdated: "2026-09-02",
   launched: "2026-03",
