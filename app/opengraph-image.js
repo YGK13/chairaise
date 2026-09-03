@@ -5,7 +5,7 @@
 import { ImageResponse } from "next/og";
 
 export const runtime = "edge";
-export const alt = "ChaiRaise — AI-Native Jewish Fundraising CRM";
+export const alt = "ChaiRaise: AI donor letters, appeals and CRM for nonprofits";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -64,7 +64,7 @@ export default async function Image() {
             marginBottom: 32,
           }}
         >
-          AI-Native Jewish Fundraising CRM
+          AI fundraising copilot + donor CRM for nonprofits
         </div>
 
         {/* Tagline */}
@@ -78,7 +78,7 @@ export default async function Image() {
             background: "rgba(245, 158, 11, 0.12)",
           }}
         >
-          Multiply Your Impact by 18
+          Donor letters, appeals and outreach, drafted in minutes
         </div>
 
         {/* Features strip */}
@@ -91,13 +91,13 @@ export default async function Image() {
             color: "#71717a",
           }}
         >
-          <span>AI Donor Intelligence</span>
+          <span>Donor letters</span>
           <span>•</span>
-          <span>Cause Matching</span>
+          <span>Batch appeals</span>
           <span>•</span>
-          <span>Social Graph</span>
+          <span>Donor briefs &amp; asks</span>
           <span>•</span>
-          <span>Smart Outreach</span>
+          <span>10-stage pipeline</span>
         </div>
       </div>
     ),

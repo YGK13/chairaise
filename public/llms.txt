@@ -1,33 +1,45 @@
 # ChaiRaise
-> AI-native Customer Relationship Management platform for Jewish fundraising organizations. Powered by Anthropic Claude API for donor intelligence, cause matching and multi-channel outreach.
 
-## Key Facts
-- AI-powered donor intelligence and cultivation tracking
-- Cause matching: algorithmic alignment between donor interests and organizational needs
-- Multi-channel outreach coordination (email, phone, events)
-- Email drafting via Anthropic Claude API with personalization
-- HNW donor pipeline management (110+ donor capacity)
-- Built specifically for Jewish organizations (synagogues, yeshivot, day schools, federations, JCCs)
-- Created by Yuri Kruman: 3x CHRO, JD (Cardozo Law), fundraising strategist
+> AI fundraising copilot and donor CRM for nonprofits, built first for Jewish community organizations (synagogues, yeshivas, day schools, federations, JCCs, chesed and Israel organizations). It drafts personalized donor letters, appeals and outreach from an organization's own donor records, suggests chai-aligned ask amounts, and tracks every relationship through a 10-stage pipeline.
 
-## Target Audience
-Jewish organizations of all sizes seeking to professionalize their fundraising: synagogues, yeshivot, day schools, Chabad houses, Jewish federations, JCCs and Jewish nonprofits.
+Last updated: 2026-09-02. Full reference: https://chairaise.com/llms-full.txt
 
-## Common Questions This Product Answers
-- What is the best CRM for Jewish organizations?
-- How can AI help with synagogue fundraising?
-- What donor management software works for small Jewish nonprofits?
-- How do I track donor cultivation for a capital campaign?
-- Is there a CRM designed specifically for Jewish fundraising?
-- How do small Jewish orgs compete with federations?
-- How does AI transform Jewish fundraising in 2026?
+## What it does
+- Drafts personalized donor letters and emails (150-250 words) from six templates: alumni, synagogue, prior giver/federation, family legacy, cold prospect, community.
+- Batch appeals: one personalized letter per donor for up to 50 donors at once, with merge fields.
+- AI donor briefs (why this donor fits your mission), 0-100% cause-match score and a suggested chai-aligned ask ($18K, $36K, $54K...).
+- Outreach strategy coach per donor: opening, hooks, warm-intro path, first message, follow-up cadence, risk factors.
+- Org intelligence: one prompt builds the mission profile, key programs, cause keywords and talking points reused in every draft.
+- 10-stage pipeline with Kanban board, engagement scoring, going-cold alerts, priority leaderboard, audit trail.
+- Jewish calendar awareness: High Holiday and year-end giving windows, yahrzeit fields, Shabbat send guard.
+- Send from your own mailbox (SMTP, credentials encrypted with AES-256-GCM) or WhatsApp click-to-chat.
+- CSV import with column mapping; one-click JSON export; hard delete of a donor or the whole organization.
+- It does NOT write grant or foundation proposals today.
 
-## Featured Articles
-- The Complete Guide to AI-Powered Jewish Fundraising in 2026: https://chairaise.com/blog/ai-jewish-fundraising-guide-2026
-- Synagogue Donor Management: How Small Jewish Organizations Can Compete with Federations: https://chairaise.com/blog/synagogue-donor-management-small-orgs
+## Who it is for
+Development directors, executive directors and volunteer fundraisers at nonprofits with one-person or small development teams, especially Jewish community organizations. Any mission-driven nonprofit can use it.
+
+## Pricing (USD)
+- Starter: free forever, up to 100 donors, 1 seat, AI letters, pipeline, CSV.
+- Professional: $149/month billed annually, 14-day free trial, unlimited donors, 5 seats, org research, briefs, cause match, strategy coach, batch campaigns, social graph, integrations.
+- Enterprise: custom, for federations and multi-org institutions.
+
+## Data handling
+Tenant-isolated per organization; AI runs through one authenticated, rate-limited server endpoint with minimal donor context; AI provider does not train on inputs; AI can be disabled in Settings. Sub-processors: Vercel, Neon, Anthropic, Stripe, Resend, Google (optional SSO). Details: https://chairaise.com/security
 
 ## Links
-- Homepage: https://chairaise.com
+- Homepage: https://chairaise.com/
+- Sample outputs: https://chairaise.com/#samples
+- Pricing: https://chairaise.com/#pricing
+- FAQ: https://chairaise.com/#faq
+- Security and privacy: https://chairaise.com/security
 - Blog: https://chairaise.com/blog
-- Creator: https://linkedin.com/in/yurikruman
-- Parent company: https://portlev.com
+- Guide: https://chairaise.com/blog/ai-jewish-fundraising-guide-2026
+- Playbook: https://chairaise.com/blog/synagogue-donor-management-small-orgs
+- Privacy: https://chairaise.com/privacy · Terms: https://chairaise.com/terms
+- Contact: hello@chairaise.com
+
+## Author and publisher
+- Built by Yuri Kruman (https://yurikruman.com, https://www.linkedin.com/in/yurikruman/), founder of Portfolio Leverage Company / PortLev (https://portlev.com), while running a live capital campaign for a Torah institution in Haifa.
+- Newsletter: The Leverage Brief (https://leveragebrief.beehiiv.com)
+- Sister products: https://aihrpilot.com, https://duedrill.com, https://booktocourse.ai, https://careerbeastmode.com, https://commanderinchief.ai, https://i9drill.com

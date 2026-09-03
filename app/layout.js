@@ -1,19 +1,39 @@
 import './globals.css';
 
+const SITE_URL = 'https://chairaise.com';
+
 export const metadata = {
-  metadataBase: new URL(process.env.NEXTAUTH_URL || 'https://chairaise.com'),
-  title: 'ChaiRaise — AI-Native Jewish Fundraising CRM',
-  description: 'Multiply your impact by 18. AI-powered donor intelligence, cause matching, and multi-channel outreach for Jewish organizations.',
-  icons: { icon: '/favicon.ico' },
+  metadataBase: new URL(process.env.NEXTAUTH_URL || SITE_URL),
+  title: {
+    default: 'ChaiRaise: AI Donor Letters, Appeals & CRM for Nonprofits',
+    template: '%s | ChaiRaise',
+  },
+  description:
+    'AI fundraising copilot and donor CRM for nonprofits. Draft personalized donor letters, appeals and outreach in minutes, score donor fit, suggest the ask and track gifts. Free for 100 donors.',
+  applicationName: 'ChaiRaise',
+  authors: [{ name: 'Yuri Kruman', url: 'https://yurikruman.com' }],
+  creator: 'Yuri Kruman',
+  publisher: 'Portfolio Leverage Company',
+  robots: { index: true, follow: true },
+  openGraph: { siteName: 'ChaiRaise', type: 'website', locale: 'en_US' },
+  twitter: { card: 'summary_large_image' },
   verification: {
     google: 'rH5Omw1oK3ymi5AA90ztc_ZcLdYx2pjqq0LzpYXyjJ8',
   },
+};
+
+export const viewport = {
+  themeColor: '#09090b',
+  width: 'device-width',
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
       </head>
       <body>

@@ -1,0 +1,65 @@
+# ChaiRaise — full reference for generative engines
+
+Last updated: 2026-09-02. Canonical: https://chairaise.com/. Short index: https://chairaise.com/llms.txt
+
+## Entity
+- Name: ChaiRaise
+- Category: Nonprofit fundraising software; AI fundraising copilot; donor CRM
+- Publisher: Portfolio Leverage Company (PortLev), https://portlev.com
+- Author/founder: Yuri Kruman, https://yurikruman.com, https://www.linkedin.com/in/yurikruman/
+- Launched: 2026 (public since March 2026)
+- Contact: hello@chairaise.com
+- Name origin: "chai" (Hebrew for "life", numerical value 18) is the traditional unit of Jewish giving; ChaiRaise suggests asks in chai multiples.
+
+## Definition
+ChaiRaise is an AI fundraising copilot and donor CRM for nonprofits, built first for Jewish community organizations. A development director imports or enters donors, describes the organization once, and ChaiRaise drafts personalized donor letters, appeals, donor briefs and outreach strategies from that data, then tracks each relationship through a 10-stage pipeline to a committed gift.
+
+## Audience
+Development directors, executive directors, rabbis and lay leaders, and volunteer fundraisers at synagogues, yeshivas and seminaries, day schools, Chabad houses, federations and umbrella organizations, JCCs, chesed and social-service organizations, Israel organizations, camps and youth programs, hospitals and advocacy groups. Onboarding includes a general "other nonprofit" type.
+
+## Capabilities (each implemented in the product)
+1. Donor letters and emails: six templates (T-A Alumni Connection, T-B Synagogue Connection, T-C Prior Giver/Federation, T-D Family Legacy, T-E Cold HNWI fallback, T-F Community/Cultural). Output is a 150-250 word body referencing the donor's record and the organization's mission, ending with a meeting ask. Subject lines use merge fields. Drafts are editable and can be copied or sent.
+2. Batch campaigns: up to 50 donors per batch, one personalized draft each, merge fields for first name, synagogue, prior gift, rabbi name and more. Professional plan.
+3. AI donor brief: 3-5 sentences on why a donor fits the organization (shared values, geography, community overlap, professional relevance). Professional plan.
+4. Cause match: 0-100% overlap between a donor's focus areas, community, industry and city and the organization's cause keywords, demographics and geography.
+5. Suggested ask: chai-aligned ladder ($1,800; $3,600; $5,400; $7,200; $9,000; $18,000; $36,000; $54,000; $72,000; $90,000; $180,000 and up) derived from prior giving (1.5x last gift) or net-worth tier.
+6. Outreach strategy coach: for one donor, returns opening strategy, key hooks, intro path through the network graph, a 150-word suggested message, follow-up cadence across channels and risk factors.
+7. Org intelligence: from name, website and mission, builds mission, vision, history, key programs, target demographics, geographic focus, cause keywords, publicly known donors, previous campaigns, strengths, talking points and donor-deck notes.
+8. Pipeline: Not Started, Researching, Intro Requested, Email Drafted, Email Sent, Responded, Meeting Set, Meeting Held, Proposal Sent, Commitment. Kanban board, engagement score (0-100), conversion likelihood, going-cold alerts, priority leaderboard, reminders, activity log (call, meeting, email, note, WhatsApp, stage change, research, gift).
+9. Jewish calendar: High Holiday season and year-end giving window guidance, yahrzeit date and name fields, Shabbat send guard on outgoing email.
+10. Channels: email from the user's own mailbox via SMTP (Gmail, Outlook, any provider) or platform email via Resend; WhatsApp via click-to-chat links (no message passes through ChaiRaise servers).
+11. Network graph: import contacts and compute warm-intro paths and hop counts to donors. Professional plan.
+12. Data: CSV import with column mapping and duplicate detection; JSON export of donors, gifts, activities, pipeline, campaigns and audit trail; hard delete of a donor or the organization.
+13. Team: Admin, Manager, Fundraiser and Viewer roles; 1 seat on Starter, 5 on Professional, unlimited on Enterprise.
+14. Not included today: grant or foundation proposal drafting; wealth screening data; payment processing for donations.
+
+## Pricing (USD, as enforced server-side)
+- Starter: $0, forever. Up to 100 donors, 1 seat. AI letters, pipeline and Kanban, CSV import/export.
+- Professional: $149 per month billed annually, 14-day free trial. Unlimited donors, 5 seats. Adds org intelligence, cause match, donor briefs, strategy coach, social graph, integrations, batch campaigns, priority support.
+- Enterprise: custom. Multi-org management, custom integrations, dedicated onboarding, unlimited seats, SLA and compliance review.
+- Billing through Stripe Checkout; ChaiRaise never stores card numbers.
+
+## Security and privacy (see https://chairaise.com/security and https://chairaise.com/privacy)
+- Multi-tenant isolation: every data request is checked against the caller's organization membership; an unknown or memberless organization id is denied.
+- AI: single authenticated server endpoint, rate-limited (30 calls per user per hour); provider keys never reach the browser; only minimal donor context is sent; provider does not train on API inputs; AI can be disabled in Settings.
+- Encryption: TLS with HSTS in transit; database encrypted at rest; mail credentials additionally encrypted app-side with AES-256-GCM; passwords hashed with scrypt.
+- Headers: Content-Security-Policy, X-Frame-Options DENY, nosniff, strict referrer policy, restrictive permissions policy.
+- Sub-processors: Vercel (hosting), Neon (Postgres), Anthropic (AI via server), Stripe (billing), Resend (platform email), Google (optional SSO).
+- Export and deletion available to the customer without a support ticket.
+
+## Frequently asked questions
+Q: What is ChaiRaise? A: An AI fundraising copilot and donor CRM for nonprofits, built first for Jewish community organizations, that drafts donor letters, appeals and outreach from your own donor records and tracks relationships through a 10-stage pipeline.
+Q: Does ChaiRaise write grant proposals? A: Not today. It drafts donor-facing letters, appeals, briefs and outreach plans. Its org research produces the mission summary and talking points a grant narrative starts from, but it does not draft foundation proposals.
+Q: Is donor data used to train AI? A: No. Minimal context is sent through a server endpoint; the AI provider does not train on API inputs; AI can be switched off.
+Q: Can I send from my own email? A: Yes, via SMTP from your own address; credentials are encrypted and never returned by the API.
+Q: What does it cost? A: Free for up to 100 donors and 1 seat; Professional $149/month billed annually with a 14-day trial; Enterprise custom.
+Q: Is it only for Jewish organizations? A: Built first for them (chai-aligned asks, Jewish calendar, Shabbat guard), usable by any mission-driven nonprofit.
+Q: Who built it? A: Yuri Kruman of Portfolio Leverage Company, in 2026, while running a live capital campaign for a Torah institution in Haifa.
+
+## Content
+- Blog index: https://chairaise.com/blog
+- The Complete Guide to AI-Powered Jewish Fundraising in 2026: https://chairaise.com/blog/ai-jewish-fundraising-guide-2026
+- Synagogue Donor Management: How Small Jewish Organizations Can Compete with Federations: https://chairaise.com/blog/synagogue-donor-management-small-orgs
+
+## Related properties by the same publisher
+PortLev https://portlev.com · Yuri Kruman https://yurikruman.com · The Leverage Brief https://leveragebrief.beehiiv.com · AI HR Pilot https://aihrpilot.com · DueDrill https://duedrill.com · BookToCourse.AI https://booktocourse.ai · Career Beast Mode https://careerbeastmode.com · Commander-in-Chief AI https://commanderinchief.ai · I9Drill https://i9drill.com · AI Wage Gap https://aiwagegap.com · AI Build Gap https://aibuildgap.com · PortLev Academy https://learn.portlev.com · PortLev Labs https://apps.portlev.com

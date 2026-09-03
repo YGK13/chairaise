@@ -21,11 +21,11 @@ export default function NotFound() {
           <Link href="/" style={{
             padding: "10px 24px", borderRadius: 8, background: "#f59e0b",
             color: "#09090b", fontWeight: 700, fontSize: 14, textDecoration: "none",
-          }}>Go to CRM</Link>
-          <Link href="/landing" style={{
+          }}>Go to homepage</Link>
+          <Link href="/blog" style={{
             padding: "10px 24px", borderRadius: 8, border: "1px solid #3f3f46",
             color: "#fafafa", fontWeight: 600, fontSize: 14, textDecoration: "none",
-          }}>Visit Homepage</Link>
+          }}>Read the blog</Link>
         </div>
       </div>
     </div>

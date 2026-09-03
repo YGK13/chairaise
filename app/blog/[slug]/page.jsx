@@ -26,7 +26,8 @@ export async function generateMetadata({ params }) {
   const post = getPost(slug);
   if (!post) return { title: "Not Found" };
   return {
-    title: `${post.title} | ChaiRaise Blog`,
+    title: { absolute: `${post.title} | ChaiRaise` },
+    alternates: { canonical: `https://chairaise.com/blog/${post.slug}` },
     description: post.description,
     keywords: post.keywords,
     openGraph: {
@@ -220,15 +221,15 @@ export default async function ArticlePage({ params }) {
             height: 64,
           }}
         >
-          <Link href="/landing" style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 700, fontSize: 18, color: TEXT, textDecoration: "none" }}>
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 700, fontSize: 18, color: TEXT, textDecoration: "none" }}>
             <span style={{ width: 32, height: 32, background: ACCENT, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#1a1103" }}>✡</span>
             ChaiRaise
           </Link>
           <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-            <Link href="/landing" style={{ color: TEXT_MUTED, fontSize: 14, textDecoration: "none" }}>Home</Link>
+            <Link href="/" style={{ color: TEXT_MUTED, fontSize: 14, textDecoration: "none" }}>Home</Link>
             <Link href="/blog" style={{ color: TEXT_MUTED, fontSize: 14, textDecoration: "none" }}>Blog</Link>
             <Link href="/auth/signin" style={{ background: ACCENT, color: "#1a1103", padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
-              Request Demo
+              Start free
             </Link>
           </div>
         </div>
@@ -288,7 +289,7 @@ export default async function ArticlePage({ params }) {
       <footer style={{ padding: "40px 0", borderTop: `1px solid ${BORDER}`, textAlign: "center" }}>
         <p style={{ fontSize: 13, color: TEXT_MUTED }}>
           &copy; 2026 ChaiRaise by Portfolio Leverage Co. &middot;{" "}
-          <Link href="/landing" style={{ color: ACCENT_LIGHT }}>Home</Link>{" "}&middot;{" "}
+          <Link href="/" style={{ color: ACCENT_LIGHT }}>Home</Link>{" "}&middot;{" "}
           <Link href="/blog" style={{ color: ACCENT_LIGHT }}>Blog</Link>{" "}&middot;{" "}
           <Link href="/privacy" style={{ color: ACCENT_LIGHT }}>Privacy</Link>
         </p>

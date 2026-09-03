@@ -6,7 +6,8 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Security & Privacy — ChaiRaise",
+  title: "Security & Privacy",
+  alternates: { canonical: "https://chairaise.com/security" },
   description:
     "How ChaiRaise protects donor data: tenant isolation, encryption, where your data goes, your own mailbox, export and permanent erasure.",
 };

@@ -1,7 +1,7 @@
 {
   "name": "chairaise",
   "version": "1.0.0",
-  "description": "ChaiRaise — AI-Native Jewish Fundraising CRM",
+  "description": "ChaiRaise — AI fundraising copilot and donor CRM for nonprofits",
   "private": true,
   "scripts": {
     "dev": "next dev",

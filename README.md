@@ -1,6 +1,6 @@
 # ChaiRaise
 
-**AI-native fundraising CRM for mission-driven organizations. Multi-tenant, server-authoritative billing, secure by construction.**
+**AI fundraising copilot and donor CRM for nonprofits and Jewish community organizations. Drafts donor letters, appeals and outreach from your own donor records; multi-tenant, server-authoritative billing, secure by construction.**
 
 [![CI](https://github.com/YGK13/chairaise/actions/workflows/test.yml/badge.svg)](https://github.com/YGK13/chairaise/actions/workflows/test.yml)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black)
@@ -10,7 +10,7 @@
 
 Live: [chairaise.com](https://chairaise.com)
 
-ChaiRaise turns a fundraising team's donor pipeline into an AI-assisted operating system: AI-drafted donor emails, a Kanban pipeline, CSV import and export, deep org-intelligence research, cause-match scoring and social-graph mapping, all gated by a billing tier the server enforces authoritatively.
+ChaiRaise turns a one-person development shop into an AI-assisted operating system: personalized donor letters and batch appeals drafted from six templates, donor briefs with cause-match scores and chai-aligned asks, an outreach strategy coach, a 10-stage Kanban pipeline, CSV import and export, org-intelligence research and social-graph mapping, all gated by a billing tier the server enforces authoritatively. It does not draft grant proposals.
 
 ---
 
@@ -100,6 +100,20 @@ npm run dev                  # http://localhost:3000
 
 Required environment (see `.env.example` for the full list): `DATABASE_URL` (Neon), `NEXTAUTH_SECRET`, Stripe keys + webhook secret, `RESEND_API_KEY`, and optional `UPSTASH_REDIS_*` for durable rate limiting. No secrets are committed. The app fails fast with a clear error if a required variable is missing.
 
+## Public marketing surface
+
+The homepage, structured data, sitemap, robots and `llms.txt` all read from one file, `content/site.js` (pricing is derived from `lib/plan.js`, so what the page sells is what the server enforces).
+
+| File | Responsibility |
+|---|---|
+| `content/site.js` | Positioning, samples, pricing, FAQ, sitemap routes, JSON-LD builders |
+| `components/LandingPage.js` | Homepage UI (client component) |
+| `app/page.js` | Homepage metadata + JSON-LD graph |
+| `app/sitemap.js`, `app/robots.js` | Metadata routes generated from `content/site.js` |
+| `public/llms.txt`, `public/llms-full.txt` | Generative-engine reference (served at `/llms.txt`, `/llms-full.txt`) |
+| `content/blog/posts.js` + `content/blog/posts/*.md` | Blog registry and articles (new posts are picked up by the sitemap automatically) |
+| `docs/AUDIT-2026-09.md`, `docs/GTM-2026-09.md` | September 2026 audit and go-to-market plan |
+
 ## Tests
 
 ```bash
@@ -107,7 +121,7 @@ npm test          # vitest run (CI runs this on every push and PR)
 npm run test:watch
 ```
 
-97 unit tests cover the security- and money-critical libraries: plan resolution and entitlements (`plan.test.js`), CSV round-tripping (`csv.test.js`), the donor graph (`graph.test.js`), AI helpers (`ai.test.js`) and shared constants (`constants.test.js`).
+Unit tests cover the security- and money-critical libraries: plan resolution and entitlements (`plan.test.js`), CSV round-tripping (`csv.test.js`), the donor graph (`graph.test.js`), AI helpers (`ai.test.js`), shared constants (`constants.test.js`), and the public marketing contract (`marketing.test.js`: pricing-to-plan parity, FAQ, JSON-LD, sitemap/robots, llms.txt).
 
 ---
 

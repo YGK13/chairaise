@@ -1,294 +1,244 @@
 'use client';
 // ============================================================
-// ChaiRaise — Marketing Homepage (premium, interactive)
-// Asymmetric layouts, live-feel product mockups, interactive feature
-// switcher, demo modal, animated stats, accordion FAQ. Brand: dark + amber,
-// "Multiply your impact by 18". All mockup names are fictional placeholders.
+// ChaiRaise — Public homepage
+//
+// Outcome-first marketing surface for nonprofit development directors and
+// executive directors. All copy, samples, pricing and FAQ come from
+// content/site.js so the page, the JSON-LD and the tests share one source.
+// Brand: dark + amber. Sample organizations and donors are fictional.
 // ============================================================
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
-
-// Drop a real demo here later (YouTube/Loom embed URL) to light up the video.
-const DEMO_VIDEO_URL = "";
+import {
+  SITE, PRICING, PROOF, SAMPLES, STEPS, OUTCOMES, TRUST, COMPARISON, FAQ, SISTER_LINKS,
+} from "@/content/site";
 
 const C = {
   bg: "#09090b", surface: "#161618", surface2: "#1d1d20", border: "#27272a",
   border2: "#3f3f46", text: "#fafafa", text2: "#a1a1aa", text3: "#71717a",
   text4: "#52525b", accent: "#f59e0b", accentSoft: "rgba(245,158,11,0.12)",
-  green: "#22c55e", blue: "#3b82f6", purple: "#8b5cf6", cyan: "#06b6d4",
+  green: "#22c55e",
 };
 
-// ============================================================
-// PRODUCT MOCKUPS — styled to look like real ChaiRaise screens
-// ============================================================
-function WindowChrome({ title, children, style }) {
-  return (
-    <div style={{
-      background: C.surface, border: `1px solid ${C.border}`, borderRadius: 12,
-      overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,0.5)", ...style,
-    }}>
-      <div style={{
-        display: "flex", alignItems: "center", gap: 8, padding: "10px 14px",
-        borderBottom: `1px solid ${C.border}`, background: "rgba(255,255,255,0.02)",
-      }}>
-        <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444" }} />
-        <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#f59e0b" }} />
-        <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e" }} />
-        <span style={{ marginLeft: 8, fontSize: 11, color: C.text3, fontWeight: 600 }}>{title}</span>
-      </div>
-      <div style={{ padding: 16 }}>{children}</div>
-    </div>
-  );
+// Lightweight CTA tracking: no analytics vendor is installed, so we emit to a
+// dataLayer if one exists and fire a DOM event any future snippet can hook.
+function trackCta(name, meta = {}) {
+  if (typeof window === "undefined") return;
+  try {
+    (window.dataLayer = window.dataLayer || []).push({ event: "cta_click", cta: name, ...meta });
+    window.dispatchEvent(new CustomEvent("cr:cta", { detail: { name, ...meta } }));
+  } catch { /* analytics must never break navigation */ }
 }
 
-function StatTile({ label, value, sub, color }) {
-  return (
-    <div style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "12px 14px" }}>
-      <div style={{ fontSize: 22, fontWeight: 800, color: color || C.text, letterSpacing: -0.5 }}>{value}</div>
-      <div style={{ fontSize: 10, color: C.text3, textTransform: "uppercase", letterSpacing: 0.5, marginTop: 2 }}>{label}</div>
-      {sub && <div style={{ fontSize: 10, color: C.green, marginTop: 3 }}>{sub}</div>}
-    </div>
-  );
+const CSS = `
+  .cr-root { --bg:${C.bg}; --surface:${C.surface}; --surface2:${C.surface2}; --border:${C.border}; --border2:${C.border2}; --text:${C.text}; --text2:${C.text2}; --text3:${C.text3}; --text4:${C.text4}; --accent:${C.accent}; --accent-soft:${C.accentSoft}; --green:${C.green};
+    background:var(--bg); color:var(--text); font-family:'Inter',system-ui,-apple-system,"Segoe UI",sans-serif; overflow-x:hidden; -webkit-font-smoothing:antialiased; }
+  .cr-root *:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:6px; }
+  .cr-wrap { max-width:1180px; margin:0 auto; padding:0 24px; }
+  .cr-section { padding:80px 0; }
+  .cr-eyebrow { font-size:12px; font-weight:700; color:var(--accent); text-transform:uppercase; letter-spacing:1px; margin:0 0 12px; }
+  .cr-h2 { font-size:38px; font-weight:800; letter-spacing:-1px; line-height:1.12; margin:0 0 14px; }
+  .cr-lead { font-size:16px; color:var(--text3); line-height:1.65; margin:0; }
+  .cr-btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; padding:13px 26px; border-radius:10px; font-size:15px; font-weight:700; text-decoration:none; border:1px solid transparent; cursor:pointer; font-family:inherit; transition:transform .15s ease, filter .15s ease, background .15s ease; line-height:1.2; }
+  .cr-btn:hover { transform:translateY(-1px); filter:brightness(1.06); }
+  .cr-btn-primary { background:var(--accent); color:#09090b; box-shadow:0 6px 24px rgba(245,158,11,0.28); }
+  .cr-btn-ghost { background:transparent; color:var(--text); border-color:var(--border2); }
+  .cr-btn-ghost:hover { background:rgba(255,255,255,0.04); }
+  .cr-btn-sm { padding:8px 16px; font-size:13px; border-radius:8px; }
+  .cr-card { background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:22px; transition:border-color .2s ease, transform .2s ease; }
+  .cr-card:hover { border-color:var(--accent); transform:translateY(-3px); }
+  .cr-grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; }
+  .cr-grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .cr-grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; }
+  .cr-link { color:var(--text2); text-decoration:none; transition:color .15s; }
+  .cr-link:hover { color:var(--text); }
+  .cr-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 10px; border-radius:20px; background:var(--surface2); border:1px solid var(--border); color:var(--text2); font-size:12px; font-weight:500; }
+  .cr-doc { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,0.45); }
+  .cr-doc-head { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 16px; border-bottom:1px solid var(--border); background:rgba(255,255,255,0.02); font-size:12px; color:var(--text3); }
+  .cr-doc-body { padding:18px 20px; }
+  .cr-doc-subject { font-size:14px; font-weight:700; margin:0 0 12px; color:var(--text); }
+  .cr-doc-body p { font-size:13px; line-height:1.7; color:var(--text2); margin:0 0 10px; }
+  .cr-doc-body p:last-child { margin-bottom:0; }
+  .cr-doc-foot { padding:10px 16px; border-top:1px solid var(--border); font-size:11px; color:var(--text4); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .cr-merge { background:rgba(245,158,11,0.16); color:#fcd34d; padding:0 4px; border-radius:4px; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:12px; }
+  .cr-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px; }
+  .cr-tab { padding:9px 16px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; border:1px solid var(--border); background:transparent; color:var(--text2); transition:all .15s ease; }
+  .cr-tab[aria-selected="true"] { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+  .cr-faq-item { border-bottom:1px solid var(--border); }
+  .cr-faq-q { width:100%; display:flex; justify-content:space-between; align-items:center; gap:16px; padding:18px 0; background:transparent; border:none; cursor:pointer; font-family:inherit; text-align:left; color:var(--text); font-size:15px; font-weight:600; }
+  .cr-faq-q span:last-child { font-size:22px; color:var(--accent); flex-shrink:0; transition:transform .2s; line-height:1; }
+  .cr-faq-q[aria-expanded="true"] span:last-child { transform:rotate(45deg); }
+  .cr-faq-a { font-size:14px; color:var(--text2); line-height:1.7; padding:0 0 18px; margin:0; max-width:680px; }
+  .cr-table-wrap { overflow-x:auto; border:1px solid var(--border); border-radius:14px; }
+  .cr-table { width:100%; border-collapse:collapse; font-size:13px; min-width:640px; }
+  .cr-table th, .cr-table td { padding:12px 14px; text-align:left; border-bottom:1px solid var(--border); vertical-align:top; line-height:1.5; }
+  .cr-table th { font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:var(--text3); background:rgba(255,255,255,0.02); }
+  .cr-table tr:last-child td { border-bottom:none; }
+  .cr-table td:first-child { color:var(--text); font-weight:600; }
+  .cr-table td { color:var(--text2); }
+  .cr-table td.cr-us { color:var(--text); background:rgba(245,158,11,0.06); }
+  .cr-table th.cr-us { color:var(--accent); }
+  .cr-nav { position:fixed; top:0; left:0; right:0; z-index:100; background:rgba(9,9,11,0.82); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); border-bottom:1px solid var(--border); height:60px; }
+  .cr-nav-inner { height:100%; display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .cr-nav-links { display:flex; gap:20px; align-items:center; }
+  .cr-nav-links a { font-size:13px; font-weight:500; }
+  .cr-burger { display:none; background:transparent; border:1px solid var(--border2); color:var(--text); border-radius:8px; padding:7px 10px; cursor:pointer; font-family:inherit; font-size:13px; }
+  .cr-mobile-menu { display:none; }
+  .cr-hero { display:grid; grid-template-columns:1.05fr 1fr; gap:48px; align-items:center; padding:120px 0 64px; }
+  .cr-h1 { font-size:54px; font-weight:800; line-height:1.06; letter-spacing:-2px; margin:0 0 18px; }
+  .cr-hero-p { font-size:18px; color:var(--text2); line-height:1.6; margin:0 0 26px; max-width:520px; }
+  .cr-hero-cta { display:flex; gap:12px; flex-wrap:wrap; }
+  .cr-hero-trust { display:flex; gap:10px; margin-top:22px; flex-wrap:wrap; }
+  .cr-proof { border-top:1px solid var(--border); border-bottom:1px solid var(--border); background:var(--surface); padding:32px 0; }
+  .cr-proof-val { font-size:36px; font-weight:800; color:var(--accent); letter-spacing:-1px; line-height:1; }
+  .cr-proof-lbl { font-size:13px; color:var(--text3); margin-top:8px; line-height:1.5; }
+  .cr-steps { display:grid; grid-template-columns:0.9fr 1.1fr; gap:48px; align-items:start; }
+  .cr-step { display:flex; gap:18px; }
+  .cr-step-n { width:40px; height:40px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:16px; flex-shrink:0; border:1px solid rgba(245,158,11,0.3); }
+  .cr-step h3 { font-size:17px; font-weight:700; margin:6px 0 6px; }
+  .cr-step p { font-size:14px; color:var(--text3); line-height:1.6; margin:0; }
+  .cr-samples { display:grid; grid-template-columns:0.9fr 1.1fr; gap:40px; align-items:start; }
+  .cr-pricing { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; align-items:start; }
+  .cr-price-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px; position:relative; }
+  .cr-price-card.hl { border:2px solid var(--accent); }
+  .cr-price-card ul { list-style:none; padding:0; margin:0; font-size:13px; color:var(--text2); line-height:1.9; }
+  .cr-newsletter { display:flex; gap:10px; flex-wrap:wrap; position:relative; }
+  .cr-input { flex:1; min-width:220px; padding:12px 14px; background:var(--bg); border:1px solid var(--border2); border-radius:10px; color:var(--text); font-size:14px; font-family:inherit; }
+  .cr-footer-grid { display:grid; grid-template-columns:1.4fr 1fr 1fr 1fr; gap:32px; }
+  .cr-footer h4 { font-size:12px; text-transform:uppercase; letter-spacing:.8px; color:var(--text3); margin:0 0 12px; }
+  .cr-footer ul { list-style:none; padding:0; margin:0; }
+  .cr-footer li { margin-bottom:8px; font-size:13px; }
+  .cr-portlev { border-top:1px solid var(--border); padding:18px 0; font-size:12px; color:var(--text4); display:flex; flex-wrap:wrap; gap:8px 14px; align-items:center; }
+  .cr-portlev a { color:var(--text3); text-decoration:none; }
+  .cr-portlev a:hover { color:var(--accent); }
+  .cr-sticky { display:none; }
+  .cr-js .cr-reveal { opacity:0; transform:translateY(14px); transition:opacity .55s ease, transform .55s ease; }
+  .cr-js .cr-reveal.is-in { opacity:1; transform:none; }
+  @media (prefers-reduced-motion: reduce) { .cr-js .cr-reveal { opacity:1; transform:none; transition:none; } .cr-btn:hover, .cr-card:hover { transform:none; } }
+  @media (max-width: 980px) {
+    .cr-hero { grid-template-columns:1fr; padding-top:100px; }
+    .cr-steps, .cr-samples { grid-template-columns:1fr; gap:28px; }
+    .cr-grid-3 { grid-template-columns:repeat(2,1fr); }
+    .cr-grid-4 { grid-template-columns:repeat(2,1fr); gap:24px; }
+    .cr-footer-grid { grid-template-columns:1fr 1fr; }
+    .cr-pricing { grid-template-columns:1fr; }
+    .cr-sticky-top { position:static !important; }
+  }
+  @media (max-width: 720px) {
+    .cr-section { padding:56px 0; }
+    .cr-h1 { font-size:36px; letter-spacing:-1.2px; }
+    .cr-h2 { font-size:28px; }
+    .cr-hero-p { font-size:16px; }
+    .cr-grid-2, .cr-grid-3 { grid-template-columns:1fr; }
+    .cr-nav-links { display:none; }
+    .cr-burger { display:inline-flex; }
+    .cr-mobile-menu[data-open="true"] { display:flex; flex-direction:column; gap:4px; position:fixed; top:60px; left:0; right:0; background:var(--bg); border-bottom:1px solid var(--border); padding:12px 24px 18px; z-index:99; }
+    .cr-mobile-menu a { padding:12px 4px; font-size:16px; border-bottom:1px solid var(--border); }
+    .cr-sticky { display:flex; position:fixed; left:0; right:0; bottom:0; z-index:90; gap:10px; align-items:center; justify-content:space-between; padding:10px 16px calc(10px + env(safe-area-inset-bottom)); background:rgba(9,9,11,0.94); backdrop-filter:blur(10px); border-top:1px solid var(--border); }
+    .cr-sticky span { font-size:12px; color:var(--text3); }
+    .cr-root { padding-bottom:70px; }
+  }
+`;
+
+// ------------------------------------------------------------
+// Sample output document card
+// ------------------------------------------------------------
+function withMergeFields(text) {
+  const parts = text.split(/(\{[A-Za-z_]+\})/g);
+  return parts.map((p, i) => (/^\{[A-Za-z_]+\}$/.test(p) ? <span key={i} className="cr-merge">{p}</span> : p));
 }
 
-function DashboardMock() {
+function SampleDoc({ sample, compact = false }) {
   return (
-    <WindowChrome title="chairaise.com/app — Dashboard · Product preview, sample data">
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 800 }}>Welcome back, Sarah</div>
-          <div style={{ fontSize: 11, color: C.text3 }}>247 donors · 21 in active pipeline</div>
-        </div>
-        <div style={{ fontSize: 10, color: C.accent, background: C.accentSoft, padding: "4px 10px", borderRadius: 20, fontWeight: 700 }}>⚡ 6 priority actions</div>
+    <figure className="cr-doc" style={{ margin: 0 }}>
+      <div className="cr-doc-head">
+        <span style={{ fontWeight: 700, color: C.text2 }}>{sample.kind}</span>
+        <span aria-hidden="true">·</span>
+        {sample.inputs.map((i) => (<span key={i} className="cr-chip" style={{ padding: "3px 8px", fontSize: 11 }}>{i}</span>))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10, marginBottom: 14 }}>
-        <StatTile label="Pipeline" value="$6.5M" sub="▲ 18%" />
-        <StatTile label="Tier 1 HNW" value="38" color={C.accent} />
-        <StatTile label="Response" value="42%" sub="▲ 9%" />
-        <StatTile label="Committed" value="$1.2M" color={C.green} />
-      </div>
-      <div style={{ fontSize: 10, color: C.text3, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 8 }}>Pipeline funnel</div>
-      {[["Researching", 62, C.blue], ["Email sent", 84, C.accent], ["Meeting held", 45, C.purple], ["Commitment", 28, C.green]].map(([l, w, c]) => (
-        <div key={l} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 7 }}>
-          <span style={{ fontSize: 10, color: C.text2, width: 78 }}>{l}</span>
-          <div style={{ flex: 1, height: 8, background: C.surface2, borderRadius: 4, overflow: "hidden" }}>
-            <div style={{ width: `${w}%`, height: "100%", background: c, borderRadius: 4 }} />
-          </div>
-        </div>
-      ))}
-    </WindowChrome>
-  );
-}
-
-function DonorMock() {
-  return (
-    <WindowChrome title="Donor — Avery Stone · Sample data">
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-        <div style={{ width: 44, height: 44, borderRadius: "50%", background: "linear-gradient(135deg,#f59e0b,#b45309)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: "#09090b" }}>AS</div>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 800 }}>Avery Stone</div>
-          <div style={{ fontSize: 11, color: C.text3 }}>Private Equity · New York</div>
-        </div>
-        <span style={{ marginLeft: "auto", fontSize: 10, fontWeight: 800, color: "#09090b", background: C.accent, padding: "3px 9px", borderRadius: 6 }}>TIER 1</span>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
-        <div style={{ background: C.surface2, borderRadius: 8, padding: "8px 10px" }}>
-          <div style={{ fontSize: 10, color: C.text3 }}>Cause Match</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: C.green }}>92%</div>
-        </div>
-        <div style={{ background: C.surface2, borderRadius: 8, padding: "8px 10px" }}>
-          <div style={{ fontSize: 10, color: C.text3 }}>Suggested Ask</div>
-          <div style={{ fontSize: 18, fontWeight: 800, color: C.accent }}>$54,000</div>
-        </div>
-      </div>
-      <div style={{ background: C.accentSoft, border: `1px solid rgba(245,158,11,0.25)`, borderRadius: 8, padding: "10px 12px" }}>
-        <div style={{ fontSize: 10, color: C.accent, fontWeight: 700, marginBottom: 4 }}>🧠 AI BRIEF</div>
-        <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.6 }}>
-          Strong alignment with your education mission. Funded two scholarship campaigns at peer orgs. Shared board tie via Daniel K. Open the ask with the legacy framing.
-        </div>
-      </div>
-    </WindowChrome>
-  );
-}
-
-function EmailMock() {
-  return (
-    <WindowChrome title="AI Email Composer · Sample data">
-      <div style={{ display: "flex", gap: 8, fontSize: 11, color: C.text3, marginBottom: 8, paddingBottom: 8, borderBottom: `1px solid ${C.border}` }}>
-        <span style={{ fontWeight: 600 }}>To:</span> avery@example.org
-      </div>
-      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Avery — your scholarship legacy &amp; our next 100 students</div>
-      <div style={{ fontSize: 11, color: C.text2, lineHeight: 1.7, marginBottom: 12 }}>
-        Dear Avery,<br />
-        Your support of educational access has changed lives. As we open our next campaign, I immediately thought of you: <span style={{ background: "rgba(245,158,11,0.18)" }}>your focus on first-generation students</span> maps directly to what we&apos;re building...
-      </div>
-      <div style={{ display: "flex", gap: 8 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#09090b", background: C.accent, padding: "7px 14px", borderRadius: 7 }}>✨ Generated by AI</span>
-        <span style={{ fontSize: 11, fontWeight: 600, color: C.text2, border: `1px solid ${C.border2}`, padding: "7px 14px", borderRadius: 7 }}>Send</span>
-      </div>
-    </WindowChrome>
-  );
-}
-
-function NetworkMock() {
-  const cols = [
-    ["Researching", C.blue, ["Avery Stone", "Jordan Blake"]],
-    ["Email Sent", C.accent, ["Riley Chen", "Morgan Diaz", "Sam Patel"]],
-    ["Meeting", C.purple, ["Casey Stone"]],
-    ["Commitment", C.green, ["Taylor Reed"]],
-  ];
-  return (
-    <WindowChrome title="Pipeline — Kanban · Sample data">
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8 }}>
-        {cols.map(([name, color, cards]) => (
-          <div key={name}>
-            <div style={{ fontSize: 9, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: color }} />{name}
-            </div>
-            {cards.map((c) => (
-              <div key={c} style={{ background: C.surface2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "7px 8px", marginBottom: 6 }}>
-                <div style={{ fontSize: 10, fontWeight: 600, color: C.text }}>{c}</div>
-                <div style={{ height: 3, width: "60%", background: color, borderRadius: 2, marginTop: 5, opacity: 0.6 }} />
+      <div className="cr-doc-body">
+        {sample.meta && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8, marginBottom: 14 }}>
+            {sample.meta.map(([k, v]) => (
+              <div key={k} style={{ background: C.surface2, borderRadius: 8, padding: "8px 10px" }}>
+                <div style={{ fontSize: 10, color: C.text3, textTransform: "uppercase", letterSpacing: 0.5 }}>{k}</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: k === "Suggested ask" ? C.accent : k === "Cause match" ? C.green : C.text }}>{v}</div>
               </div>
             ))}
           </div>
-        ))}
+        )}
+        {sample.subject && <p className="cr-doc-subject">Subject: {withMergeFields(sample.subject)}</p>}
+        {(compact ? sample.body.slice(0, 4) : sample.body).map((p, i) => (<p key={i}>{withMergeFields(p)}</p>))}
       </div>
-    </WindowChrome>
+      <figcaption className="cr-doc-foot">
+        <span>Sample output. Fictional organization and donor.</span>
+        <span>Every draft is editable before it is sent.</span>
+      </figcaption>
+    </figure>
   );
 }
 
-// ============================================================
-// DATA
-// ============================================================
-const SHOWCASE = [
-  { key: "intel", label: "Donor Intelligence", icon: "🧠", title: "Know every donor before you reach out", desc: "Enter your org once. AI researches your mission and scores every donor by how well they match what you actually do — so you spend time on the people most likely to give.", bullets: ["AI org research in 30 seconds", "Cause-match % on every donor", "Chai-aligned suggested ask amounts"], mock: <DonorMock /> },
-  { key: "email", label: "AI Outreach", icon: "✉️", title: "Personalized emails in one click", desc: "Generate outreach that sounds like you wrote it — built from your talking points, the donor's interests and proven fundraising templates. Edit, then send.", bullets: ["One-click personalized drafts", "Your voice, your templates", "Batch to 50 donors at once"], mock: <EmailMock /> },
-  { key: "pipeline", label: "Pipeline", icon: "📊", title: "A pipeline that tells you what to do next", desc: "Ten-stage pipeline, Kanban board, AI engagement scoring and a daily priority list — so nothing goes cold and no major gift slips through.", bullets: ["Drag-and-drop Kanban", "AI priority leaderboard", "Going-cold alerts"], mock: <NetworkMock /> },
-  { key: "dash", label: "Dashboard", icon: "📈", title: "Your whole shop, at a glance", desc: "Pipeline value, tier breakdown, response rates and weekly activity — the numbers your board asks about, live and exportable.", bullets: ["Real-time fundraising metrics", "Board-ready reporting", "Full audit trail"], mock: <DashboardMock /> },
-];
-
-const FEATURES = [
-  { icon: "🧠", title: "AI Org Intelligence", desc: "AI researches your mission, programs and known donors, then builds talking points for every outreach." },
-  { icon: "🎯", title: "Cause Match Scoring", desc: "Every donor gets a match % against YOUR mission. Focus on donors who care about what you do." },
-  { icon: "✉️", title: "AI Email Generation", desc: "One click drafts personalized outreach from your org's talking points and donor intel." },
-  { icon: "🕸️", title: "Social Graph Mapping", desc: "Import LinkedIn + Google contacts. AI maps the shortest warm intro path to every donor." },
-  { icon: "📊", title: "Pipeline Intelligence", desc: "10-stage pipeline, Kanban, engagement scoring, priority leaderboard and conversion analytics." },
-  { icon: "🔌", title: "Platform Integrations", desc: "Connect IsraelGives, Donorbox, Charidy, Givebutter and more. Sync donors automatically." },
-  { icon: "📨", title: "Batch Campaigns", desc: "Send personalized emails to 50 donors at once — each one tailored with merge fields and context." },
-  { icon: "🕯️", title: "Jewish Calendar Aware", desc: "Yahrzeit reminders, chai-multiple asks and giving windows tuned to the Jewish calendar." },
-  { icon: "📜", title: "Audit & Compliance", desc: "Every action logged. Full audit trail for board reporting and accountability. Export anytime." },
-];
-
-const ORGS = [
-  { type: "Yeshivas", icon: "📖" }, { type: "Synagogues", icon: "🕍" }, { type: "Day Schools", icon: "🏫" },
-  { type: "Federations", icon: "🏛️" }, { type: "Chesed Orgs", icon: "🤲" }, { type: "Israel Orgs", icon: "🇮🇱" },
-  { type: "Camps & Youth", icon: "⛺" }, { type: "Advocacy", icon: "📢" },
-];
-
-const STATS = [
-  { value: 18, suffix: "×", label: "The chai multiplier on your impact" },
-  { value: 30, suffix: " sec", label: "To AI-research your entire org" },
-  { value: 5, suffix: " min", label: "From signup to first outreach" },
-  { value: 100, suffix: "%", label: "Of actions logged for your board" },
-];
-
-const FAQ = [
-  { q: "Do I need to migrate my data first?", a: "No. Start empty and add donors as you go, or import a CSV/JSON export from your current tool in one step. No IT project, no migration weekend." },
-  { q: "Is my donor data private and secure?", a: "Yes. Every organization's data is fully isolated — no one outside your org can see your donors. Auth is password-protected, all actions are logged, and we never share or sell your data." },
-  { q: "How does the AI know about my organization?", a: "You enter your org name and website once. The AI researches your mission, programs, focus areas and publicly-known donors, then uses that to score donors by cause-match and draft personalized outreach." },
-  { q: "What does 'cause match' actually mean?", a: "Each donor gets a 0–100% score showing how closely their interests, giving history and affiliations line up with your specific mission — so you prioritize the donors most likely to say yes." },
-  { q: "Can my whole team use it?", a: "Yes. Starter includes 1 seat, Professional includes 5, and Enterprise is unlimited — with roles for admins, managers, fundraisers and view-only board members." },
-  { q: "What does it cost?", a: "Starter is free forever (up to 100 donors). Professional is $149/mo with unlimited donors and the full AI suite, including a 14-day free trial. Enterprise is custom for federations and large institutions." },
-  { q: "Why is it built specifically for Jewish organizations?", a: "Because generic CRMs don't speak your language. ChaiRaise understands chai-aligned ask amounts, yahrzeit reminders, the Jewish giving calendar, and the community structures — yeshivas, shuls, federations — that drive Jewish philanthropy." },
-];
-
-// ============================================================
-// Count-up animation for the stats band
-// ============================================================
-function useCountUp(target, run) {
-  // Initialize at the target so server-rendered and pre-scroll views show the
-  // real number, never a wall of zeros. The count-up plays once `run` is true.
-  const [n, setN] = useState(target);
-  useEffect(() => {
-    if (!run) return;
-    let raf, start;
-    const step = (t) => {
-      if (!start) start = t;
-      const p = Math.min((t - start) / 1100, 1);
-      setN(Math.round((1 - Math.pow(1 - p, 3)) * target));
-      if (p < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
-  }, [target, run]);
-  return n;
-}
-
-function Stat({ value, suffix, label, run }) {
-  const n = useCountUp(value, run);
-  return (
-    <div style={{ textAlign: "center" }}>
-      <div style={{ fontSize: 44, fontWeight: 800, color: C.accent, letterSpacing: -1, lineHeight: 1 }}>{n}{suffix}</div>
-      <div style={{ fontSize: 12, color: C.text3, marginTop: 8, maxWidth: 180, marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>{label}</div>
-    </div>
-  );
-}
-
-// ============================================================
-// CONTACT / SALES MODAL
-// ============================================================
+// ------------------------------------------------------------
+// Contact / sales modal (posts to the existing /api/contact route)
+// ------------------------------------------------------------
 function ContactModal({ plan, onClose }) {
   const [form, setForm] = useState({ name: "", email: "", org: "", message: "", website: "" });
-  const [state, setState] = useState("idle"); // idle | sending | sent | error
+  const [state, setState] = useState("idle");
   const [err, setErr] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const submit = async (e) => {
     e.preventDefault();
     if (!form.email || !form.message) { setErr("Email and a short message are required."); return; }
     setState("sending"); setErr("");
     try {
-      const r = await fetch("/api/contact", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, plan }),
-      });
+      const r = await fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...form, plan }) });
       const d = await r.json();
       if (!r.ok) { setErr(d.error || "Something went wrong."); setState("error"); return; }
-      setState("sent");
+      setState("sent"); trackCta("contact_sent", { plan });
     } catch {
-      setErr("Could not send. Please email hello@chairaise.com."); setState("error");
+      setErr(`Could not send. Please email ${SITE.contactEmail}.`); setState("error");
     }
   };
 
   const field = { width: "100%", padding: "10px 12px", background: C.bg, border: `1px solid ${C.border}`, borderRadius: 8, color: C.text, fontSize: 13, fontFamily: "inherit", outline: "none", boxSizing: "border-box", marginBottom: 10 };
+  const label = { display: "block", fontSize: 11, color: C.text3, marginBottom: 4, fontWeight: 600 };
 
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 28 }}>
+    <div onClick={onClose} role="presentation" style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+      <div role="dialog" aria-modal="true" aria-labelledby="cr-contact-title" onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 460, background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 16, padding: 28 }}>
         {state === "sent" ? (
           <div style={{ textAlign: "center", padding: "20px 0" }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>✓</div>
-            <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Thanks — we&apos;ll be in touch</h3>
+            <div style={{ fontSize: 40, marginBottom: 12 }} aria-hidden="true">✓</div>
+            <h3 id="cr-contact-title" style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Thanks, we will be in touch</h3>
             <p style={{ fontSize: 14, color: C.text3, lineHeight: 1.6, marginBottom: 20 }}>Your message is on its way. We typically reply within one business day.</p>
-            <button onClick={onClose} style={{ padding: "11px 24px", background: C.accent, color: "#09090b", border: "none", borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>Done</button>
+            <button onClick={onClose} className="cr-btn cr-btn-primary">Done</button>
           </div>
         ) : (
           <>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 4 }}>
-              <h3 style={{ fontSize: 20, fontWeight: 800 }}>Talk to us</h3>
-              <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.text3, fontSize: 20, cursor: "pointer" }}>✕</button>
+              <h3 id="cr-contact-title" style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>Talk to us</h3>
+              <button onClick={onClose} aria-label="Close" style={{ background: "transparent", border: "none", color: C.text3, fontSize: 20, cursor: "pointer" }}>✕</button>
             </div>
-            <p style={{ fontSize: 13, color: C.text3, marginBottom: 18 }}>Tell us about your organization and we&apos;ll get right back to you{plan ? ` about ${plan}` : ""}.</p>
+            <p style={{ fontSize: 13, color: C.text3, marginBottom: 18 }}>Tell us about your organization and we will get right back to you{plan ? ` about ${plan}` : ""}.</p>
             <form onSubmit={submit}>
-              <input style={field} placeholder="Your name" value={form.name} onChange={set("name")} />
-              <input style={field} type="email" placeholder="Work email *" value={form.email} onChange={set("email")} required />
-              <input style={field} placeholder="Organization" value={form.org} onChange={set("org")} />
-              <textarea style={{ ...field, minHeight: 90, resize: "vertical" }} placeholder="How can we help? *" value={form.message} onChange={set("message")} required />
-              {/* honeypot — hidden from humans */}
+              <label style={label} htmlFor="cr-c-name">Your name</label>
+              <input id="cr-c-name" style={field} value={form.name} onChange={set("name")} autoComplete="name" />
+              <label style={label} htmlFor="cr-c-email">Work email *</label>
+              <input id="cr-c-email" style={field} type="email" value={form.email} onChange={set("email")} required autoComplete="email" />
+              <label style={label} htmlFor="cr-c-org">Organization</label>
+              <input id="cr-c-org" style={field} value={form.org} onChange={set("org")} autoComplete="organization" />
+              <label style={label} htmlFor="cr-c-msg">How can we help? *</label>
+              <textarea id="cr-c-msg" style={{ ...field, minHeight: 90, resize: "vertical" }} value={form.message} onChange={set("message")} required />
               <input tabIndex={-1} autoComplete="off" value={form.website} onChange={set("website")} style={{ position: "absolute", left: "-9999px", width: 1, height: 1 }} aria-hidden="true" />
-              {err && <div style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444", padding: "8px 12px", borderRadius: 6, fontSize: 12, marginBottom: 10 }}>{err}</div>}
-              <button type="submit" disabled={state === "sending"} style={{ width: "100%", padding: 12, background: C.accent, color: "#09090b", border: "none", borderRadius: 9, fontSize: 14, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", opacity: state === "sending" ? 0.6 : 1 }}>
+              {err && <div role="alert" style={{ background: "rgba(239,68,68,0.12)", color: "#ef4444", padding: "8px 12px", borderRadius: 6, fontSize: 12, marginBottom: 10 }}>{err}</div>}
+              <button type="submit" disabled={state === "sending"} className="cr-btn cr-btn-primary" style={{ width: "100%", opacity: state === "sending" ? 0.6 : 1 }}>
                 {state === "sending" ? "Sending…" : "Send message"}
               </button>
             </form>
@@ -299,334 +249,426 @@ function ContactModal({ plan, onClose }) {
   );
 }
 
-// ============================================================
-// PAGE
-// ============================================================
-export default function LandingPage() {
-  const [tab, setTab] = useState("intel");
-  const [openFaq, setOpenFaq] = useState(0);
-  const [showVideo, setShowVideo] = useState(false);
-  const [contactPlan, setContactPlan] = useState(null); // null = closed; string = open + interest
-  const [statsRun, setStatsRun] = useState(false);
-  const statsRef = useRef(null);
-  const active = SHOWCASE.find((s) => s.key === tab);
+// ------------------------------------------------------------
+// Newsletter capture: existing drip route first, Beehiiv link as fallback
+// ------------------------------------------------------------
+function Newsletter() {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState("idle");
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!email) return;
+    setState("sending");
+    try {
+      const r = await fetch("/api/drip/enroll", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ dripId: SITE.newsletter.dripId, email, source: "chairaise-home" }) });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.ok !== false) { setState("sent"); trackCta("newsletter_subscribed"); return; }
+      setState("fallback");
+    } catch { setState("fallback"); }
+  };
+  if (state === "sent") return <p style={{ fontSize: 14, color: C.green, margin: 0 }}>You are on the list. Watch for the next issue.</p>;
+  return (
+    <form onSubmit={submit} className="cr-newsletter" aria-label="Subscribe to The Leverage Brief">
+      <label htmlFor="cr-nl-email" style={{ position: "absolute", left: -9999 }}>Email address</label>
+      <input id="cr-nl-email" className="cr-input" type="email" required placeholder="you@yourorg.org" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+      <button type="submit" className="cr-btn cr-btn-primary" disabled={state === "sending"}>{state === "sending" ? "Subscribing…" : "Subscribe"}</button>
+      {state === "fallback" && (
+        <p style={{ width: "100%", fontSize: 13, color: C.text3, margin: "6px 0 0" }}>
+          Our signup service is busy. <a href={SITE.newsletter.url} target="_blank" rel="noopener noreferrer" style={{ color: C.accent }}>Subscribe directly on {SITE.newsletter.name}</a>.
+        </p>
+      )}
+    </form>
+  );
+}
 
+const SAMPLE_BLURBS = {
+  letter: "A 150 to 250 word letter built from the donor's history, affiliations and focus areas plus your org's talking points, ending with a clear meeting ask. Six templates cover alumni, synagogue, prior givers, family legacy, cold prospects and community ties.",
+  appeal: "Pick a template, select up to 50 donors, and ChaiRaise drafts one personalized letter per donor with merge fields filled from their record. Review, edit and send from your own mailbox.",
+  brief: "Before you write, a three to five sentence brief explains why this donor fits your mission, with a cause-match score, a suggested chai-aligned ask and the best template for them.",
+  strategy: "For any donor, an outreach plan: how to open, which hooks will land, the warm-intro path through your network, a first message, a follow-up cadence across email, WhatsApp and calls, and what could go wrong.",
+};
+
+const NAV = [
+  ["#samples", "Samples"], ["#how", "How it works"], ["#pricing", "Pricing"], ["#faq", "FAQ"], ["/blog", "Blog"], ["/security", "Security"],
+];
+
+// ------------------------------------------------------------
+// Page
+// ------------------------------------------------------------
+export default function LandingPage() {
+  const [tab, setTab] = useState(SAMPLES[0].key);
+  const [openFaq, setOpenFaq] = useState(0);
+  const [contactPlan, setContactPlan] = useState(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [js, setJs] = useState(false);
+  const rootRef = useRef(null);
+  const active = SAMPLES.find((s) => s.key === tab) || SAMPLES[0];
+  const closeContact = useCallback(() => setContactPlan(null), []);
+
+  // Reveal-on-scroll. Content is fully visible until JS runs, then animates in.
   useEffect(() => {
-    const el = statsRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { setStatsRun(true); io.disconnect(); } }, { threshold: 0.4 });
-    io.observe(el);
+    setJs(true);
+    const root = rootRef.current;
+    if (!root || typeof IntersectionObserver === "undefined") return;
+    const els = root.querySelectorAll(".cr-reveal");
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("is-in"); io.unobserve(en.target); } });
+    }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+    els.forEach((el) => io.observe(el));
     return () => io.disconnect();
   }, []);
 
+  const navLink = (href, label, onClick) => (href.startsWith("#")
+    ? <a key={href} className="cr-link" href={href} onClick={onClick}>{label}</a>
+    : <Link key={href} className="cr-link" href={href} onClick={onClick}>{label}</Link>);
+
   return (
-    <div style={{ background: C.bg, color: C.text, fontFamily: "'Inter', system-ui, sans-serif", overflowX: "hidden" }}>
-      <style>{`
-        .cr-card { transition: border-color .2s ease, transform .2s ease, background .2s ease; }
-        .cr-card:hover { border-color: ${C.accent} !important; transform: translateY(-3px); }
-        .cr-cta { transition: filter .15s ease, transform .15s ease; }
-        .cr-cta:hover { filter: brightness(1.06); transform: translateY(-1px); }
-        .cr-tab { transition: all .15s ease; }
-        .cr-link:hover { color: ${C.text} !important; }
-        .cr-fade { animation: crFade .5s ease both; }
-        @keyframes crFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-        @keyframes crPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(245,158,11,0.5); } 50% { box-shadow: 0 0 0 14px rgba(245,158,11,0); } }
-        .cr-play { animation: crPulse 2.2s infinite; }
-        @media (max-width: 980px) {
-          .cr-hero { grid-template-columns: 1fr !important; text-align: center; }
-          .cr-hero-cta { justify-content: center !important; }
-          .cr-show { grid-template-columns: 1fr !important; }
-          .cr-2col { grid-template-columns: 1fr !important; }
-          .cr-grid3 { grid-template-columns: repeat(2,1fr) !important; }
-          .cr-stats { grid-template-columns: repeat(2,1fr) !important; gap: 32px !important; }
-          .cr-hide-sm { display: none !important; }
-        }
-        @media (max-width: 620px) {
-          .cr-grid3, .cr-gridp, .cr-orgs { grid-template-columns: 1fr !important; }
-          .cr-hero-h1 { font-size: 40px !important; }
-          .cr-nav-link { display: none !important; }
-        }
-      `}</style>
+    <div ref={rootRef} className={`cr-root${js ? " cr-js" : ""}`}>
+      <style dangerouslySetInnerHTML={{ __html: CSS }} />
 
       {/* ===== NAV ===== */}
-      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "rgba(9,9,11,0.8)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${C.border}`, height: 60, display: "flex", alignItems: "center" }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", width: "100%", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 30, height: 30, background: C.accent, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, color: "#09090b" }}>CR</div>
-            <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.5 }}>ChaiRaise</span>
-          </div>
-          <div style={{ display: "flex", gap: 22, alignItems: "center" }}>
-            <a className="cr-nav-link cr-link" href="#product" style={{ color: C.text2, fontSize: 13, fontWeight: 500, textDecoration: "none" }}>Product</a>
-            <a className="cr-nav-link cr-link" href="#features" style={{ color: C.text2, fontSize: 13, fontWeight: 500, textDecoration: "none" }}>Features</a>
-            <a className="cr-nav-link cr-link" href="#pricing" style={{ color: C.text2, fontSize: 13, fontWeight: 500, textDecoration: "none" }}>Pricing</a>
-            <a className="cr-nav-link cr-link" href="#faq" style={{ color: C.text2, fontSize: 13, fontWeight: 500, textDecoration: "none" }}>FAQ</a>
-            <Link className="cr-nav-link cr-link" href="/auth/signin" style={{ color: C.text2, fontSize: 13, fontWeight: 500, textDecoration: "none" }}>Sign In</Link>
-            <Link className="cr-cta" href="/auth/signin" style={{ padding: "8px 18px", background: C.accent, color: "#09090b", borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: "none" }}>Get Started Free</Link>
-          </div>
-        </div>
-      </nav>
-
-      {/* ===== HERO (asymmetric) ===== */}
-      <section style={{ borderBottom: `1px solid ${C.border}`, background: "radial-gradient(ellipse 80% 50% at 70% 0%, rgba(245,158,11,0.10), transparent 60%)" }}>
-        <div className="cr-hero" style={{ maxWidth: 1180, margin: "0 auto", padding: "108px 24px 56px", display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: 48, alignItems: "center" }}>
-          <div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 13px", borderRadius: 20, background: C.accentSoft, color: C.accent, fontSize: 12, fontWeight: 600, marginBottom: 22 }}>
-              ✨ The first AI-native CRM for Jewish fundraising
+      <header>
+        <nav className="cr-nav" aria-label="Primary">
+          <div className="cr-wrap cr-nav-inner">
+            <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", color: C.text }} aria-label="ChaiRaise home">
+              <span style={{ width: 30, height: 30, background: C.accent, borderRadius: 8, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, color: "#09090b" }} aria-hidden="true">CR</span>
+              <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.5 }}>ChaiRaise</span>
+            </Link>
+            <div className="cr-nav-links">
+              {NAV.map(([href, label]) => navLink(href, label))}
+              <Link className="cr-link" href="/auth/signin">Sign in</Link>
+              <Link className="cr-btn cr-btn-primary cr-btn-sm" href="/auth/signin" data-cta="nav_start" onClick={() => trackCta("nav_start")}>Start free</Link>
             </div>
-            <h1 className="cr-hero-h1" style={{ fontSize: 58, fontWeight: 800, lineHeight: 1.05, letterSpacing: -2, marginBottom: 18 }}>
-              Multiply your<br />impact by <span style={{ color: C.accent }}>18</span>
-            </h1>
-            <p style={{ fontSize: 18, color: C.text2, lineHeight: 1.6, marginBottom: 28, maxWidth: 480 }}>
-              ChaiRaise researches your donors, scores them by cause match and writes the outreach — so yeshivas, shuls and federations raise more in less time.
+            <button className="cr-burger" aria-expanded={menuOpen} aria-controls="cr-mobile-menu" onClick={() => setMenuOpen((o) => !o)}>
+              {menuOpen ? "Close" : "Menu"}
+            </button>
+          </div>
+        </nav>
+        <div id="cr-mobile-menu" className="cr-mobile-menu" data-open={menuOpen}>
+          {NAV.map(([href, label]) => navLink(href, label, () => setMenuOpen(false)))}
+          <Link className="cr-link" href="/auth/signin" onClick={() => setMenuOpen(false)}>Sign in</Link>
+        </div>
+      </header>
+
+      <main id="main-content">
+        {/* ===== HERO ===== */}
+        <section aria-labelledby="cr-hero-title" style={{ borderBottom: `1px solid ${C.border}`, background: "radial-gradient(ellipse 80% 50% at 70% 0%, rgba(245,158,11,0.10), transparent 60%)" }}>
+          <div className="cr-wrap cr-hero">
+            <div>
+              <p style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 13px", borderRadius: 20, background: C.accentSoft, color: C.accent, fontSize: 12, fontWeight: 600, margin: "0 0 22px" }}>
+                AI fundraising copilot + donor CRM for nonprofits
+              </p>
+              <h1 id="cr-hero-title" className="cr-h1">
+                Donor letters, appeals and outreach, drafted in <span style={{ color: C.accent }}>minutes</span>, not afternoons.
+              </h1>
+              <p className="cr-hero-p">
+                For development directors and EDs at synagogues, day schools, yeshivas, federations and any mission-driven nonprofit.
+                Import your donors; ChaiRaise writes the personalized letter, scores the fit, suggests the chai-aligned ask and tracks the relationship to a committed gift.
+              </p>
+              <div className="cr-hero-cta">
+                <Link className="cr-btn cr-btn-primary" href="/auth/signin" data-cta="hero_start" onClick={() => trackCta("hero_start")}>Start free, no card</Link>
+                <a className="cr-btn cr-btn-ghost" href="#samples" data-cta="hero_samples" onClick={() => trackCta("hero_samples")}>See sample outputs</a>
+              </div>
+              <div className="cr-hero-trust" aria-label="Trust highlights">
+                <span className="cr-chip">🔐 Data isolated per organization</span>
+                <span className="cr-chip">✉️ Send from your own mailbox</span>
+                <span className="cr-chip">📤 Export or delete any time</span>
+              </div>
+            </div>
+            <div className="cr-reveal">
+              <SampleDoc sample={SAMPLES[0]} compact />
+            </div>
+          </div>
+        </section>
+
+        {/* ===== PROOF BAR ===== */}
+        <section className="cr-proof" aria-label="Product facts">
+          <div className="cr-wrap cr-grid-4">
+            {PROOF.map((p) => (
+              <div key={p.label} className="cr-reveal">
+                <div className="cr-proof-val">{p.value}</div>
+                <div className="cr-proof-lbl">{p.label}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ===== SAMPLE OUTPUTS ===== */}
+        <section id="samples" className="cr-section" aria-labelledby="cr-samples-title">
+          <div className="cr-wrap">
+            <div style={{ maxWidth: 680, marginBottom: 32 }} className="cr-reveal">
+              <p className="cr-eyebrow">Sample outputs</p>
+              <h2 id="cr-samples-title" className="cr-h2">What ChaiRaise writes for you</h2>
+              <p className="cr-lead">Four things a development director produces every week, generated from one donor record and one org profile. Names and organizations below are fictional.</p>
+            </div>
+            <div className="cr-samples">
+              <div>
+                <div className="cr-tabs" role="tablist" aria-label="Sample output types">
+                  {SAMPLES.map((s) => (
+                    <button key={s.key} type="button" role="tab" id={`tab-${s.key}`} aria-selected={tab === s.key} aria-controls={`panel-${s.key}`} className="cr-tab" onClick={() => { setTab(s.key); trackCta("sample_tab", { tab: s.key }); }}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+                <h3 style={{ fontSize: 24, fontWeight: 800, letterSpacing: -0.5, margin: "0 0 12px" }}>{active.label}</h3>
+                <p style={{ fontSize: 15, color: C.text2, lineHeight: 1.7, margin: "0 0 18px" }}>{SAMPLE_BLURBS[active.key]}</p>
+                <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                  {active.inputs.map((b) => (
+                    <li key={b} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, fontSize: 14 }}>
+                      <span style={{ width: 20, height: 20, borderRadius: "50%", background: C.accentSoft, color: C.accent, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }} aria-hidden="true">✓</span>
+                      Uses: {b}
+                    </li>
+                  ))}
+                </ul>
+                <Link className="cr-btn cr-btn-primary" href="/auth/signin" style={{ marginTop: 20 }} data-cta="samples_start" onClick={() => trackCta("samples_start")}>Draft your first letter free</Link>
+              </div>
+              <div role="tabpanel" id={`panel-${active.key}`} aria-labelledby={`tab-${active.key}`} key={active.key}>
+                <SampleDoc sample={active} />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ===== HOW IT WORKS ===== */}
+        <section id="how" className="cr-section" aria-labelledby="cr-how-title" style={{ borderTop: `1px solid ${C.border}`, background: "rgba(255,255,255,0.015)" }}>
+          <div className="cr-wrap cr-steps">
+            <div className="cr-sticky-top" style={{ position: "sticky", top: 90 }}>
+              <p className="cr-eyebrow">The workflow</p>
+              <h2 id="cr-how-title" className="cr-h2">From a spreadsheet to a signed pledge</h2>
+              <p className="cr-lead" style={{ marginBottom: 24 }}>No IT project. Sign up, describe your organization, import a CSV, and the first letter is ready to edit before your coffee cools.</p>
+              <Link className="cr-btn cr-btn-primary" href="/auth/signin" data-cta="how_start" onClick={() => trackCta("how_start")}>Start free</Link>
+            </div>
+            <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {STEPS.map((s, i) => (
+                <li key={s.n} className="cr-step cr-reveal" style={{ paddingBottom: i === STEPS.length - 1 ? 0 : 26 }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <div className="cr-step-n" aria-hidden="true">{s.n}</div>
+                    {i !== STEPS.length - 1 && <div style={{ width: 2, flex: 1, background: C.border, marginTop: 6 }} />}
+                  </div>
+                  <div>
+                    <h3>{s.t}</h3>
+                    <p>{s.d}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        {/* ===== OUTCOMES ===== */}
+        <section id="features" className="cr-section" aria-labelledby="cr-out-title">
+          <div className="cr-wrap">
+            <div style={{ maxWidth: 640, marginBottom: 36 }} className="cr-reveal">
+              <p className="cr-eyebrow">Outcomes</p>
+              <h2 id="cr-out-title" className="cr-h2">Built to raise more with a smaller team</h2>
+              <p className="cr-lead">Everything a one-person development shop needs to run like a federation, and nothing a board will not understand.</p>
+            </div>
+            <div className="cr-grid-3">
+              {OUTCOMES.map((f) => (
+                <article key={f.title} className="cr-card cr-reveal">
+                  <div style={{ fontSize: 26, marginBottom: 12 }} aria-hidden="true">{f.icon}</div>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, margin: "0 0 7px" }}>{f.title}</h3>
+                  <p style={{ fontSize: 13, color: C.text3, lineHeight: 1.6, margin: 0 }}>{f.desc}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ===== TRUST / DATA HANDLING ===== */}
+        <section id="trust" className="cr-section" aria-labelledby="cr-trust-title" style={{ borderTop: `1px solid ${C.border}`, background: "radial-gradient(ellipse 60% 80% at 50% 0%, rgba(245,158,11,0.05), transparent 70%)" }}>
+          <div className="cr-wrap">
+            <div style={{ maxWidth: 680, marginBottom: 32 }} className="cr-reveal">
+              <p className="cr-eyebrow">Data handling</p>
+              <h2 id="cr-trust-title" className="cr-h2">Your donor list is the most sensitive file you own</h2>
+              <p className="cr-lead">Every claim below is implemented in the product and itemized, control by control, on the <Link href="/security" style={{ color: C.accent }}>Security page</Link>. Sub-processors: Vercel (hosting), Neon (database), Anthropic (AI via our server), Stripe (billing), Resend (platform email) and Google (optional sign-in).</p>
+            </div>
+            <div className="cr-grid-2">
+              {TRUST.map((t) => (
+                <article key={t.title} className="cr-card cr-reveal" style={{ display: "flex", gap: 16 }}>
+                  <div style={{ fontSize: 24 }} aria-hidden="true">{t.icon}</div>
+                  <div>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 6px" }}>{t.title}</h3>
+                    <p style={{ fontSize: 13, color: C.text3, lineHeight: 1.65, margin: 0 }}>{t.body}</p>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ===== FOUNDER ===== */}
+        <section className="cr-section" aria-labelledby="cr-founder-title" style={{ borderTop: `1px solid ${C.border}` }}>
+          <div className="cr-wrap" style={{ maxWidth: 820, textAlign: "center" }}>
+            <h2 className="cr-eyebrow" id="cr-founder-title">Why it exists</h2>
+            <blockquote className="cr-reveal" style={{ fontSize: 22, fontWeight: 600, lineHeight: 1.5, letterSpacing: -0.4, margin: "0 0 18px" }}>
+              &ldquo;ChaiRaise was not built in a lab. I built it while running a live $12M campaign for a 360-student Torah institution in Haifa, managing a pipeline of 110+ major donors. Every feature exists because the campaign needed it.&rdquo;
+            </blockquote>
+            <p style={{ fontSize: 13, color: C.text3, margin: 0 }}>
+              <a href={SITE.author.url} style={{ color: C.text2, fontWeight: 600, textDecoration: "none" }}>{SITE.author.name}</a>, founder of ChaiRaise and <a href={SITE.publisher.url} style={{ color: C.text2, textDecoration: "none" }}>{SITE.publisher.name}</a>. 3x CHRO, fundraising strategist, executive coach to 2,300+ leaders.
             </p>
-            <div className="cr-hero-cta" style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <Link className="cr-cta" href="/auth/signin" style={{ padding: "14px 30px", background: C.accent, color: "#09090b", borderRadius: 10, fontSize: 16, fontWeight: 700, textDecoration: "none", boxShadow: "0 6px 24px rgba(245,158,11,0.3)" }}>Start Free →</Link>
-              <button className="cr-cta" onClick={() => setShowVideo(true)} style={{ padding: "14px 26px", background: "transparent", color: C.text, borderRadius: 10, fontSize: 16, fontWeight: 600, border: `1px solid ${C.border2}`, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ width: 22, height: 22, borderRadius: "50%", background: C.accent, color: "#09090b", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 9 }}>▶</span>
-                Watch 2-min demo
-              </button>
-            </div>
-            <div style={{ display: "flex", gap: 18, marginTop: 22, flexWrap: "wrap", fontSize: 12, color: C.text3 }}>
-              <span>✓ No credit card</span><span>✓ Free forever tier</span><span>✓ Set up in 5 minutes</span>
-            </div>
           </div>
-          <div className="cr-fade"><DashboardMock /></div>
-        </div>
-      </section>
+        </section>
 
-      {/* ===== LOGO / ORG STRIP ===== */}
-      <section style={{ borderBottom: `1px solid ${C.border}`, padding: "22px 24px" }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap", justifyContent: "center" }}>
-          <span style={{ fontSize: 11, color: C.text4, textTransform: "uppercase", letterSpacing: 1, marginRight: 8 }}>Built for every corner of the Jewish world</span>
-          {ORGS.map((o) => (<span key={o.type} style={{ fontSize: 13, color: C.text3 }}>{o.icon} {o.type}</span>))}
-        </div>
-      </section>
+        {/* ===== PRICING ===== */}
+        <section id="pricing" className="cr-section" aria-labelledby="cr-pricing-title" style={{ borderTop: `1px solid ${C.border}` }}>
+          <div className="cr-wrap">
+            <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto 40px" }} className="cr-reveal">
+              <p className="cr-eyebrow">Pricing</p>
+              <h2 id="cr-pricing-title" className="cr-h2">Free until you outgrow 100 donors</h2>
+              <p className="cr-lead">The plans below are exactly what the server enforces. Starter never expires and never asks for a card.</p>
+            </div>
+            <div className="cr-pricing">
+              {PRICING.map((p) => (
+                <div key={p.id} className={`cr-price-card cr-reveal${p.highlight ? " hl" : ""}`}>
+                  {p.highlight && <div style={{ position: "absolute", top: -11, left: "50%", transform: "translateX(-50%)", background: C.accent, color: "#09090b", padding: "3px 14px", borderRadius: 12, fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>MOST POPULAR</div>}
+                  <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 3px" }}>{p.name}</h3>
+                  <p style={{ fontSize: 12, color: C.text3, margin: "0 0 14px" }}>{p.desc}</p>
+                  <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1 }}>{p.price}<span style={{ fontSize: 15, fontWeight: 500, color: C.text3 }}>{p.per}</span></div>
+                  <p style={{ fontSize: 11, color: C.text4, margin: "0 0 20px" }}>{p.note}</p>
+                  {p.href === "contact" ? (
+                    <button type="button" className="cr-btn cr-btn-ghost" style={{ width: "100%", marginBottom: 20 }} onClick={() => { setContactPlan(p.name); trackCta("pricing_contact", { plan: p.id }); }}>{p.cta}</button>
+                  ) : (
+                    <Link className={`cr-btn ${p.highlight ? "cr-btn-primary" : "cr-btn-ghost"}`} style={{ width: "100%", marginBottom: 20, boxSizing: "border-box" }} href={p.href} data-cta={`pricing_${p.id}`} onClick={() => trackCta("pricing_cta", { plan: p.id })}>{p.cta}</Link>
+                  )}
+                  <ul>{p.feats.map((f) => (<li key={f}>✓ {f}</li>))}</ul>
+                </div>
+              ))}
+            </div>
 
-      {/* ===== INTERACTIVE PRODUCT SHOWCASE ===== */}
-      <section id="product" style={{ maxWidth: 1180, margin: "0 auto", padding: "72px 24px" }}>
-        <div style={{ maxWidth: 640, marginBottom: 32 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>The product</div>
-          <h2 style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1, lineHeight: 1.15, marginBottom: 12 }}>One workspace, from first contact to committed gift</h2>
-          <p style={{ fontSize: 16, color: C.text3, lineHeight: 1.6 }}>Click through the tools your team uses every day.</p>
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 28 }}>
-          {SHOWCASE.map((s) => (
-            <button key={s.key} className="cr-tab" onClick={() => setTab(s.key)} style={{
-              padding: "9px 16px", borderRadius: 9, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-              border: `1px solid ${tab === s.key ? C.accent : C.border}`,
-              background: tab === s.key ? C.accentSoft : "transparent",
-              color: tab === s.key ? C.accent : C.text2,
-            }}>{s.icon} {s.label}</button>
-          ))}
-        </div>
-        <div className="cr-show" style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr", gap: 40, alignItems: "center" }}>
-          <div key={tab} className="cr-fade">
-            <h3 style={{ fontSize: 26, fontWeight: 800, letterSpacing: -0.5, marginBottom: 14 }}>{active.title}</h3>
-            <p style={{ fontSize: 15, color: C.text2, lineHeight: 1.7, marginBottom: 20 }}>{active.desc}</p>
-            {active.bullets.map((b) => (
-              <div key={b} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 11 }}>
-                <span style={{ width: 20, height: 20, borderRadius: "50%", background: C.accentSoft, color: C.accent, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0 }}>✓</span>
-                <span style={{ fontSize: 14, color: C.text }}>{b}</span>
+            {/* Comparison */}
+            <div style={{ marginTop: 56 }} className="cr-reveal">
+              <h3 style={{ fontSize: 22, fontWeight: 800, letterSpacing: -0.5, margin: "0 0 8px" }}>How it compares</h3>
+              <p style={{ fontSize: 14, color: C.text3, margin: "0 0 18px" }}>What you actually do today versus what ChaiRaise does. Vendor-specific claims are deliberately left as &ldquo;varies&rdquo;.</p>
+              <div className="cr-table-wrap">
+                <table className="cr-table">
+                  <caption style={{ position: "absolute", left: -9999 }}>Comparison of ChaiRaise with a spreadsheet plus chat assistant and a general nonprofit CRM</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Capability</th>
+                      {COMPARISON.columns.map((c, i) => (<th key={c} scope="col" className={i === COMPARISON.columns.length - 1 ? "cr-us" : ""}>{c}</th>))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {COMPARISON.rows.map((r) => (
+                      <tr key={r[0]}>
+                        {r.map((cell, i) => (i === 0 ? <td key={i}>{cell}</td> : <td key={i} className={i === r.length - 1 ? "cr-us" : ""}>{cell}</td>))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
-          </div>
-          <div key={tab + "m"} className="cr-fade">{active.mock}</div>
-        </div>
-      </section>
-
-      {/* ===== DEMO VIDEO BAND ===== */}
-      <section style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, background: "radial-gradient(ellipse 70% 60% at 50% 50%, rgba(245,158,11,0.06), transparent 70%)", padding: "64px 24px" }}>
-        <div style={{ maxWidth: 860, margin: "0 auto", textAlign: "center" }}>
-          <h2 style={{ fontSize: 32, fontWeight: 800, letterSpacing: -1, marginBottom: 10 }}>See ChaiRaise in two minutes</h2>
-          <p style={{ fontSize: 15, color: C.text3, marginBottom: 28 }}>Watch how a cold list becomes a warm pipeline — research, match, draft, send, track.</p>
-          <button onClick={() => setShowVideo(true)} style={{ position: "relative", display: "block", width: "100%", border: "none", padding: 0, cursor: "pointer", borderRadius: 14, overflow: "hidden", background: "transparent" }}>
-            <div style={{ pointerEvents: "none" }}><DashboardMock /></div>
-            <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(9,9,11,0.35)" }}>
-              <span className="cr-play" style={{ width: 64, height: 64, borderRadius: "50%", background: C.accent, color: "#09090b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, paddingLeft: 4 }}>▶</span>
-            </span>
-          </button>
-        </div>
-      </section>
-
-      {/* ===== FEATURE BENTO ===== */}
-      <section id="features" style={{ maxWidth: 1180, margin: "0 auto", padding: "72px 24px" }}>
-        <div style={{ maxWidth: 620, marginBottom: 36 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Everything you need</div>
-          <h2 style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1, lineHeight: 1.15 }}>Built to raise more, with less busywork</h2>
-        </div>
-        <div className="cr-grid3" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 }}>
-          {FEATURES.map((f) => (
-            <div key={f.title} className="cr-card" style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14, padding: 22 }}>
-              <div style={{ fontSize: 26, marginBottom: 12 }}>{f.icon}</div>
-              <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 7 }}>{f.title}</h3>
-              <p style={{ fontSize: 13, color: C.text3, lineHeight: 1.6 }}>{f.desc}</p>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ===== STATS BAND ===== */}
-      <section ref={statsRef} style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, background: C.surface, padding: "56px 24px" }}>
-        <div className="cr-stats" style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 24 }}>
-          {STATS.map((s) => (<Stat key={s.label} {...s} run={statsRun} />))}
-        </div>
-      </section>
-
-      {/* ===== HOW IT WORKS (left timeline) ===== */}
-      <section id="how" style={{ maxWidth: 1180, margin: "0 auto", padding: "72px 24px" }}>
-        <div className="cr-2col" style={{ display: "grid", gridTemplateColumns: "0.9fr 1.1fr", gap: 48, alignItems: "start" }}>
-          <div style={{ position: "sticky", top: 90 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>How it works</div>
-            <h2 style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1, lineHeight: 1.15, marginBottom: 14 }}>Up and running in 5 minutes</h2>
-            <p style={{ fontSize: 15, color: C.text3, lineHeight: 1.7, marginBottom: 24 }}>No IT department. No migration weekend. Just sign up and start raising.</p>
-            <Link className="cr-cta" href="/auth/signin" style={{ display: "inline-block", padding: "12px 26px", background: C.accent, color: "#09090b", borderRadius: 10, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>Start Free →</Link>
           </div>
-          <div>
-            {[
-              { n: "1", t: "Enter your org", d: "Name and website. AI researches your mission, programs and known donors in seconds." },
-              { n: "2", t: "Add or import donors", d: "Start fresh or import a CSV/JSON export. We tier and score every donor by cause match." },
-              { n: "3", t: "Let AI draft outreach", d: "One click writes personalized emails from your talking points and each donor's intel." },
-              { n: "4", t: "Send, track, close", d: "Move donors through the pipeline, get going-cold alerts and a daily priority list." },
-            ].map((s, i, arr) => (
-              <div key={s.n} style={{ display: "flex", gap: 18, paddingBottom: i === arr.length - 1 ? 0 : 26 }}>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <div style={{ width: 40, height: 40, borderRadius: "50%", background: C.accentSoft, color: C.accent, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 16, flexShrink: 0, border: `1px solid rgba(245,158,11,0.3)` }}>{s.n}</div>
-                  {i !== arr.length - 1 && <div style={{ width: 2, flex: 1, background: C.border, marginTop: 6 }} />}
-                </div>
-                <div style={{ paddingTop: 6 }}>
-                  <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>{s.t}</h3>
-                  <p style={{ fontSize: 14, color: C.text3, lineHeight: 1.6 }}>{s.d}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ===== ORIGIN: honest founder credibility, no anonymous testimonials ===== */}
-      <section style={{ borderTop: `1px solid ${C.border}`, padding: "64px 24px", background: "radial-gradient(ellipse 60% 80% at 50% 0%, rgba(245,158,11,0.05), transparent 70%)" }}>
-        <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center" }}>
-          <div style={{ fontSize: 34, marginBottom: 16 }}>✡️</div>
-          <blockquote style={{ fontSize: 24, fontWeight: 600, lineHeight: 1.5, letterSpacing: -0.5, margin: "0 0 18px" }}>
-            &ldquo;ChaiRaise wasn&apos;t built in a lab. I built it running a live $12M campaign for a
-            360-student Torah institution in Haifa, managing a pipeline of 110+ major donors.
-            Every feature exists because the campaign needed it.&rdquo;
-          </blockquote>
-          <p style={{ fontSize: 13, color: C.text3 }}>— Yuri Kruman, founder of ChaiRaise. 3x CHRO, fundraising strategist, executive coach to 2,300+ leaders.</p>
-        </div>
-      </section>
-
-      {/* ===== PRICING ===== */}
-      <section id="pricing" style={{ maxWidth: 1080, margin: "0 auto", padding: "72px 24px" }}>
-        <div style={{ textAlign: "center", marginBottom: 40 }}>
-          <h2 style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1, marginBottom: 10 }}>Simple, transparent pricing</h2>
-          <p style={{ fontSize: 16, color: C.text3 }}>Start free. Upgrade when you&apos;re ready to raise more.</p>
-        </div>
-        <div className="cr-gridp" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, alignItems: "start" }}>
-          {[
-            { name: "Starter", price: "Free", note: "Forever", desc: "For small organizations getting started", feats: ["Up to 100 donors", "AI email generation", "Pipeline & Kanban board", "CSV import / export", "1 team member"], cta: "Get Started", highlight: false },
-            { name: "Professional", price: "$149", per: "/mo", note: "Billed annually · 14-day trial", desc: "For growing organizations", feats: ["Unlimited donors", "AI Org Intelligence", "Cause match scoring", "Social graph mapping", "Platform integrations", "Batch campaigns", "5 team members", "Priority support"], cta: "Start Free Trial", highlight: true },
-            { name: "Enterprise", price: "Custom", note: "Let's talk", desc: "For federations & large institutions", feats: ["Everything in Pro", "Multi-org management", "Custom integrations", "Dedicated onboarding", "SLA & compliance", "Unlimited team members", "White-label option"], cta: "Contact Sales", highlight: false },
-          ].map((p) => (
-            <div key={p.name} style={{ background: C.surface, border: `${p.highlight ? 2 : 1}px solid ${p.highlight ? C.accent : C.border}`, borderRadius: 16, padding: 28, position: "relative" }}>
-              {p.highlight && <div style={{ position: "absolute", top: -11, left: "50%", transform: "translateX(-50%)", background: C.accent, color: "#09090b", padding: "3px 14px", borderRadius: 12, fontSize: 11, fontWeight: 700 }}>MOST POPULAR</div>}
-              <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 3 }}>{p.name}</h3>
-              <p style={{ fontSize: 12, color: C.text3, marginBottom: 14 }}>{p.desc}</p>
-              <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: -1 }}>{p.price}<span style={{ fontSize: 15, fontWeight: 500, color: C.text3 }}>{p.per || ""}</span></div>
-              <p style={{ fontSize: 11, color: C.text4, marginBottom: 20 }}>{p.note}</p>
-              {p.name === "Enterprise" ? (
-                <button className="cr-cta" onClick={() => setContactPlan("Enterprise")} style={{ display: "block", width: "100%", textAlign: "center", padding: 12, borderRadius: 9, fontSize: 14, fontWeight: 700, marginBottom: 20, background: "transparent", color: C.text, border: `1px solid ${C.border2}`, cursor: "pointer", fontFamily: "inherit" }}>{p.cta}</button>
-              ) : (
-                <Link className="cr-cta" href={p.name === "Professional" ? "/auth/signin?upgrade=1" : "/auth/signin"} style={{ display: "block", textAlign: "center", padding: 12, borderRadius: 9, fontSize: 14, fontWeight: 700, textDecoration: "none", marginBottom: 20, background: p.highlight ? C.accent : "transparent", color: p.highlight ? "#09090b" : C.text, border: p.highlight ? "none" : `1px solid ${C.border2}` }}>{p.cta}</Link>
-              )}
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: 13, color: C.text2, lineHeight: 1.9 }}>
-                {p.feats.map((f) => (<li key={f}>✓ {f}</li>))}
-              </ul>
+        {/* ===== FAQ ===== */}
+        <section id="faq" className="cr-section" aria-labelledby="cr-faq-title" style={{ borderTop: `1px solid ${C.border}` }}>
+          <div className="cr-wrap cr-samples">
+            <div>
+              <p className="cr-eyebrow">FAQ</p>
+              <h2 id="cr-faq-title" className="cr-h2">Questions, answered</h2>
+              <p className="cr-lead">Direct answers first. Still curious? Email <a href={`mailto:${SITE.contactEmail}`} style={{ color: C.accent, textDecoration: "none" }}>{SITE.contactEmail}</a>.</p>
             </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ===== FAQ (accordion) ===== */}
-      <section id="faq" style={{ borderTop: `1px solid ${C.border}`, padding: "72px 24px" }}>
-        <div className="cr-2col" style={{ maxWidth: 1080, margin: "0 auto", display: "grid", gridTemplateColumns: "0.7fr 1.3fr", gap: 48, alignItems: "start" }}>
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>FAQ</div>
-            <h2 style={{ fontSize: 34, fontWeight: 800, letterSpacing: -1, lineHeight: 1.15, marginBottom: 12 }}>Questions, answered</h2>
-            <p style={{ fontSize: 14, color: C.text3, lineHeight: 1.7 }}>Still curious? Email <a href="mailto:hello@chairaise.com" style={{ color: C.accent, textDecoration: "none" }}>hello@chairaise.com</a> and we&apos;ll get right back to you.</p>
+            <div>
+              {FAQ.map((item, i) => {
+                const open = openFaq === i;
+                return (
+                  <div key={item.q} className="cr-faq-item">
+                    <h3 style={{ margin: 0 }}>
+                      <button type="button" className="cr-faq-q" aria-expanded={open} aria-controls={`faq-a-${i}`} id={`faq-q-${i}`} onClick={() => setOpenFaq(open ? -1 : i)}>
+                        <span>{item.q}</span>
+                        <span aria-hidden="true">+</span>
+                      </button>
+                    </h3>
+                    <p id={`faq-a-${i}`} role="region" aria-labelledby={`faq-q-${i}`} className="cr-faq-a" hidden={!open}>{item.a}</p>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <div>
-            {FAQ.map((item, i) => {
-              const open = openFaq === i;
-              return (
-                <div key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-                  <button onClick={() => setOpenFaq(open ? -1 : i)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, padding: "18px 0", background: "transparent", border: "none", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}>
-                    <span style={{ fontSize: 15, fontWeight: 600, color: C.text }}>{item.q}</span>
-                    <span style={{ fontSize: 20, color: C.accent, flexShrink: 0, transition: "transform .2s", transform: open ? "rotate(45deg)" : "none" }}>+</span>
-                  </button>
-                  {open && <p className="cr-fade" style={{ fontSize: 14, color: C.text2, lineHeight: 1.7, padding: "0 0 18px", margin: 0, maxWidth: 620 }}>{item.a}</p>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
+        </section>
 
-      {/* ===== FINAL CTA ===== */}
-      <section style={{ borderTop: `1px solid ${C.border}`, padding: "80px 24px", textAlign: "center", background: "radial-gradient(ellipse 60% 100% at 50% 100%, rgba(245,158,11,0.12), transparent 70%)" }}>
-        <h2 style={{ fontSize: 44, fontWeight: 800, letterSpacing: -1.5, marginBottom: 14, lineHeight: 1.1 }}>Ready to raise smarter?</h2>
-        <p style={{ fontSize: 17, color: C.text3, maxWidth: 480, margin: "0 auto 30px", lineHeight: 1.6 }}>Join the next generation of Jewish fundraising. Set up in 5 minutes — no credit card.</p>
-        <Link className="cr-cta" href="/auth/signin" style={{ display: "inline-block", padding: "16px 40px", background: C.accent, color: "#09090b", borderRadius: 12, fontSize: 18, fontWeight: 700, textDecoration: "none", boxShadow: "0 8px 30px rgba(245,158,11,0.35)" }}>Get Started Free →</Link>
-      </section>
+        {/* ===== NEWSLETTER ===== */}
+        <section className="cr-section" aria-labelledby="cr-nl-title" style={{ borderTop: `1px solid ${C.border}`, background: "rgba(255,255,255,0.015)" }}>
+          <div className="cr-wrap cr-grid-2" style={{ alignItems: "center" }}>
+            <div>
+              <p className="cr-eyebrow">Stay sharp</p>
+              <h2 id="cr-nl-title" className="cr-h2" style={{ fontSize: 28 }}>One idea a week on raising more with less</h2>
+              <p className="cr-lead">{SITE.newsletter.name} covers AI leverage for small teams, including the fundraising playbooks behind ChaiRaise. No spam, unsubscribe any time.</p>
+            </div>
+            <Newsletter />
+          </div>
+        </section>
+
+        {/* ===== FINAL CTA ===== */}
+        <section className="cr-section" aria-labelledby="cr-final-title" style={{ borderTop: `1px solid ${C.border}`, textAlign: "center", background: "radial-gradient(ellipse 60% 100% at 50% 100%, rgba(245,158,11,0.12), transparent 70%)" }}>
+          <div className="cr-wrap">
+            <h2 id="cr-final-title" className="cr-h2" style={{ fontSize: 44 }}>Your next appeal, drafted tonight</h2>
+            <p className="cr-lead" style={{ maxWidth: 520, margin: "0 auto 30px" }}>Free for your first 100 donors. Import a CSV, generate a letter, and decide for yourself. No credit card, no sales call.</p>
+            <Link className="cr-btn cr-btn-primary" href="/auth/signin" style={{ fontSize: 17, padding: "16px 40px" }} data-cta="final_start" onClick={() => trackCta("final_start")}>Start free</Link>
+          </div>
+        </section>
+      </main>
 
       {/* ===== FOOTER ===== */}
-      <footer style={{ borderTop: `1px solid ${C.border}`, padding: "32px 24px" }}>
-        <div style={{ maxWidth: 1180, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16 }}>
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <div style={{ width: 22, height: 22, background: C.accent, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 9, color: "#09090b" }}>CR</div>
-              <span style={{ fontSize: 14, fontWeight: 700 }}>ChaiRaise</span>
+      <footer className="cr-footer" style={{ borderTop: `1px solid ${C.border}`, padding: "48px 0 0" }}>
+        <div className="cr-wrap">
+          <div className="cr-footer-grid">
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <span style={{ width: 22, height: 22, background: C.accent, borderRadius: 6, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 9, color: "#09090b" }} aria-hidden="true">CR</span>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>ChaiRaise</span>
+              </div>
+              <p style={{ fontSize: 13, color: C.text3, lineHeight: 1.6, margin: "0 0 10px", maxWidth: 320 }}>{SITE.tagline}. An AI fundraising copilot and donor CRM for nonprofits and Jewish community organizations.</p>
+              <p style={{ fontSize: 12, color: C.text4, margin: 0 }}>Last updated {SITE.lastUpdated}</p>
             </div>
-            <p style={{ fontSize: 11, color: C.text4 }}>Multiply your impact by 18.</p>
+            <div>
+              <h4>Product</h4>
+              <ul>
+                <li><a className="cr-link" href="#samples">Sample outputs</a></li>
+                <li><a className="cr-link" href="#how">How it works</a></li>
+                <li><a className="cr-link" href="#pricing">Pricing</a></li>
+                <li><a className="cr-link" href="#faq">FAQ</a></li>
+                <li><Link className="cr-link" href="/security">Security &amp; privacy</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Resources</h4>
+              <ul>
+                <li><Link className="cr-link" href="/blog">Blog</Link></li>
+                <li><Link className="cr-link" href="/blog/ai-jewish-fundraising-guide-2026">AI Jewish fundraising guide</Link></li>
+                <li><Link className="cr-link" href="/blog/synagogue-donor-management-small-orgs">Synagogue donor management</Link></li>
+                <li><a className="cr-link" href="/llms.txt">llms.txt</a></li>
+              </ul>
+            </div>
+            <div>
+              <h4>Company</h4>
+              <ul>
+                <li><a className="cr-link" href={`mailto:${SITE.contactEmail}`}>Contact</a></li>
+                <li><a className="cr-link" href={SITE.author.url}>{SITE.author.name}</a></li>
+                <li><a className="cr-link" href={SITE.publisher.url}>{SITE.publisher.name}</a></li>
+                <li><Link className="cr-link" href="/privacy">Privacy</Link></li>
+                <li><Link className="cr-link" href="/terms">Terms</Link></li>
+              </ul>
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 22 }}>
-            <a href="mailto:hello@chairaise.com" className="cr-link" style={{ color: C.text3, fontSize: 12, textDecoration: "none" }}>Contact</a>
-            <a href="/security" className="cr-link" style={{ color: C.accent, fontSize: 12, textDecoration: "none", fontWeight: 600 }}>Security</a>
-            <a href="/privacy" className="cr-link" style={{ color: C.text3, fontSize: 12, textDecoration: "none" }}>Privacy</a>
-            <a href="/terms" className="cr-link" style={{ color: C.text3, fontSize: 12, textDecoration: "none" }}>Terms</a>
+          <div className="cr-portlev" style={{ marginTop: 40 }}>
+            <span style={{ color: C.text3, fontWeight: 600 }}>A PortLev build</span>
+            <span aria-hidden="true">·</span>
+            {SISTER_LINKS.map((s) => (<a key={s.url} href={s.url} rel="noopener">{s.name}</a>))}
           </div>
-          <p style={{ fontSize: 11, color: C.text4 }}>© 2026 ChaiRaise. All rights reserved.</p>
+          <div style={{ padding: "14px 0 20px", fontSize: 11, color: C.text4 }}>© 2026 {SITE.publisher.name}. ChaiRaise is a product of {SITE.publisher.name}. All rights reserved.</div>
         </div>
       </footer>
 
-      {/* ===== VIDEO MODAL ===== */}
-      {showVideo && (
-        <div onClick={() => setShowVideo(false)} style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.8)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: 880, background: C.surface, border: `1px solid ${C.border2}`, borderRadius: 16, overflow: "hidden" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${C.border}` }}>
-              <span style={{ fontSize: 14, fontWeight: 700 }}>ChaiRaise — Product Demo</span>
-              <button onClick={() => setShowVideo(false)} style={{ background: "transparent", border: "none", color: C.text3, fontSize: 20, cursor: "pointer" }}>✕</button>
-            </div>
-            {DEMO_VIDEO_URL ? (
-              <div style={{ position: "relative", paddingTop: "56.25%" }}>
-                <iframe src={DEMO_VIDEO_URL} title="ChaiRaise demo" allow="accelerated-encoding; autoplay; fullscreen" allowFullScreen style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }} />
-              </div>
-            ) : (
-              <div style={{ padding: "48px 32px", textAlign: "center" }}>
-                <div style={{ fontSize: 40, marginBottom: 14 }}>🎬</div>
-                <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 10 }}>The full walkthrough is on its way</h3>
-                <p style={{ fontSize: 14, color: C.text3, lineHeight: 1.7, maxWidth: 460, margin: "0 auto 24px" }}>
-                  Want the fastest tour? Jump straight into the live demo — it takes about two minutes to see research, AI drafting and the pipeline in action.
-                </p>
-                <Link className="cr-cta" href="/auth/signin" style={{ display: "inline-block", padding: "13px 30px", background: C.accent, color: "#09090b", borderRadius: 10, fontSize: 15, fontWeight: 700, textDecoration: "none" }}>Try the live demo →</Link>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* ===== STICKY MOBILE CTA ===== */}
+      <div className="cr-sticky" aria-hidden={contactPlan ? "true" : "false"}>
+        <span>Free for 100 donors</span>
+        <Link className="cr-btn cr-btn-primary cr-btn-sm" href="/auth/signin" data-cta="sticky_start" onClick={() => trackCta("sticky_start")}>Start free</Link>
+      </div>
 
-      {/* ===== CONTACT / SALES MODAL ===== */}
-      {contactPlan && <ContactModal plan={contactPlan} onClose={() => setContactPlan(null)} />}
+      {contactPlan && <ContactModal plan={contactPlan} onClose={closeContact} />}
     </div>
   );
 }

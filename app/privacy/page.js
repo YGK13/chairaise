@@ -5,8 +5,9 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Privacy Policy — ChaiRaise",
-  description: "How ChaiRaise handles your data",
+  title: "Privacy Policy",
+  alternates: { canonical: "https://chairaise.com/privacy" },
+  description: "How ChaiRaise collects, uses, stores and deletes account and donor data, and how AI features handle donor context.",
 };
 
 export default function PrivacyPage() {

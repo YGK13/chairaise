@@ -4,7 +4,8 @@
 import Link from "next/link";
 
 export const metadata = {
-  title: "Terms of Service — ChaiRaise",
+  title: "Terms of Service",
+  alternates: { canonical: "https://chairaise.com/terms" },
   description: "ChaiRaise terms of service and acceptable use policy",
 };
 

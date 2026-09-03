@@ -15,7 +15,7 @@ const TEXT = "#e4e4e7";
 const TEXT_MUTED = "#a1a1aa";
 
 export const metadata = {
-  title: "ChaiRaise Blog — AI-Powered Jewish Fundraising Insights",
+  title: "Blog: AI Fundraising Playbooks for Jewish Nonprofits",
   description:
     "Practical guides and frameworks for Jewish fundraising professionals. AI, donor management, synagogue ops and federation-level strategy for every size org.",
   keywords: [
@@ -27,7 +27,7 @@ export const metadata = {
   ],
   alternates: { canonical: "https://chairaise.com/blog" },
   openGraph: {
-    title: "ChaiRaise Blog — AI-Powered Jewish Fundraising Insights",
+    title: "Blog: AI Fundraising Playbooks for Jewish Nonprofits",
     description:
       "Practical guides and frameworks for Jewish fundraising professionals.",
     url: "https://chairaise.com/blog",
@@ -68,15 +68,15 @@ export default function BlogIndexPage() {
             height: 64,
           }}
         >
-          <Link href="/landing" style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 700, fontSize: 18, color: TEXT, textDecoration: "none" }}>
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, fontWeight: 700, fontSize: 18, color: TEXT, textDecoration: "none" }}>
             <span style={{ width: 32, height: 32, background: ACCENT, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#1a1103" }}>✡</span>
             ChaiRaise
           </Link>
           <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-            <Link href="/landing" style={{ color: TEXT_MUTED, fontSize: 14, textDecoration: "none" }}>Home</Link>
+            <Link href="/" style={{ color: TEXT_MUTED, fontSize: 14, textDecoration: "none" }}>Home</Link>
             <Link href="/blog" style={{ color: TEXT, fontSize: 14, textDecoration: "none", fontWeight: 600 }}>Blog</Link>
             <Link href="/auth/signin" style={{ background: ACCENT, color: "#1a1103", padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
-              Request Demo
+              Start free
             </Link>
           </div>
         </div>
@@ -142,7 +142,7 @@ export default function BlogIndexPage() {
       <footer style={{ padding: "40px 0", borderTop: `1px solid ${BORDER}`, textAlign: "center" }}>
         <p style={{ fontSize: 13, color: TEXT_MUTED }}>
           &copy; 2026 ChaiRaise by Portfolio Leverage Co. &middot;{" "}
-          <Link href="/landing" style={{ color: ACCENT_LIGHT }}>Home</Link>{" "}&middot;{" "}
+          <Link href="/" style={{ color: ACCENT_LIGHT }}>Home</Link>{" "}&middot;{" "}
           <Link href="/privacy" style={{ color: ACCENT_LIGHT }}>Privacy</Link>
         </p>
       </footer>
