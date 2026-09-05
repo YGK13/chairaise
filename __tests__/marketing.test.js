@@ -15,6 +15,9 @@ import {
 } from "@/content/site";
 import sitemap from "@/app/sitemap";
 import robots from "@/app/robots";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import LandingPage from "@/components/LandingPage";
+import { createElement } from "react";
 
 const read = (p) => fs.readFileSync(path.join(process.cwd(), p), "utf8");
 
@@ -153,9 +156,11 @@ describe("llms.txt", () => {
     }
   });
 
-  it("does not leak model identifiers", () => {
-    for (const f of ["public/llms.txt", "public/llms-full.txt", "content/site.js"]) {
-      expect(read(f)).not.toMatch(/sonnet|opus|haiku|gpt-4|claude-\d/i);
+  it("does not leak model or vendor identifiers, and follows house copy rules", () => {
+    for (const f of ["public/llms.txt", "public/llms-full.txt", "content/site.js", "components/LandingPage.js"]) {
+      const txt = read(f);
+      expect(txt).not.toMatch(/sonnet|opus|haiku|gpt-4|claude-\d|\bclaude\b|anthropic|openai/i);
+      expect(txt).not.toContain("\u2014"); // no em dashes in page copy
     }
   });
 });
@@ -174,5 +179,28 @@ describe("site entity", () => {
     const m = pageSrc.match(/const TITLE = "([^"]+)"/);
     expect(m).toBeTruthy();
     expect(m[1].length).toBeLessThanOrEqual(60);
+  });
+});
+
+
+describe("homepage sample tabs", () => {
+  it("renders every sample in the DOM and moves between tabs with the keyboard", () => {
+    render(createElement(LandingPage));
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs).toHaveLength(SAMPLES.length);
+    // Every panel is server-renderable: all four bodies are present, inactive ones hidden.
+    for (const s of SAMPLES) {
+      expect(document.getElementById(`panel-${s.key}`)).toBeTruthy();
+      expect(document.body.textContent).toContain(s.body[1].slice(0, 40));
+    }
+    expect(document.getElementById("panel-appeal").hidden).toBe(true);
+    // Roving tabindex + ArrowRight selects the next tab.
+    expect(tabs[0].getAttribute("tabindex")).toBe("0");
+    expect(tabs[1].getAttribute("tabindex")).toBe("-1");
+    fireEvent.keyDown(tabs[0], { key: "ArrowRight" });
+    expect(screen.getAllByRole("tab")[1].getAttribute("aria-selected")).toBe("true");
+    expect(document.getElementById("panel-appeal").hidden).toBe(false);
+    expect(document.getElementById("panel-letter").hidden).toBe(true);
+    cleanup();
   });
 });

@@ -89,7 +89,7 @@ Time saved: 30-50% reduction, but the real value is identifying legacy-ready don
 | Feature | ChaiRaise | Bloomerang | DonorPerfect | Salesforce NPSP |
 |---------|-----------|-----------|-------------|-----------------|
 | **Built for Jewish orgs** | Yes | No (general nonprofit) | No | No |
-| **AI donor intelligence** | Yes (Claude API) | Limited | No | Add-on |
+| **AI donor intelligence** | Yes (built in) | Limited | No | Add-on |
 | **Jewish calendar awareness** | Yes | No | No | No |
 | **Multi-generational relationships** | Native | Manual | Manual | Custom build |
 | **Yissachar-Zevulun tracking** | Native | No | No | Custom build |
