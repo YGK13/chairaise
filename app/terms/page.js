@@ -1,5 +1,5 @@
 // ============================================================
-// ChaiRaise — Terms of Service
+// ChaiRaise terms of service
 // ============================================================
 import Link from "next/link";
 
@@ -66,7 +66,7 @@ export default function TermsPage() {
           <Section title="6. AI Features">
             <ul>
               <li>AI-generated content (emails, donor briefs, research) is provided as suggestions. You are responsible for reviewing and approving all AI-generated communications before sending.</li>
-              <li>AI features use third-party models (Anthropic Claude). Your data is processed according to our Privacy Policy.</li>
+              <li>AI features use a third-party AI provider, named in our Privacy Policy. Your data is processed according to that policy.</li>
               <li>AI outputs may contain inaccuracies. Always verify factual claims, especially donor information and financial data.</li>
               <li>We do not guarantee the accuracy, completeness, or suitability of AI-generated content.</li>
             </ul>

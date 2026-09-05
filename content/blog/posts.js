@@ -10,7 +10,7 @@ export const POSTS = [
     title: "The Complete Guide to AI-Powered Jewish Fundraising in 2026",
     seoTitle: "AI-Powered Jewish Fundraising Guide 2026 | ChaiRaise",
     description:
-      "How Jewish organizations use AI for donor cultivation: a 5-stage pipeline, tool comparison and practical framework for synagogues, yeshivot and federations.",
+      "How Jewish organizations use AI for donor cultivation: a 5-stage pipeline, tool comparison and practical framework for synagogues and federations.",
     keywords: [
       "jewish fundraising",
       "ai fundraising",

@@ -1,5 +1,5 @@
 // ============================================================
-// ChaiRaise — Privacy Policy
+// ChaiRaise privacy policy
 // Required for handling donor PII, GDPR, and org trust
 // ============================================================
 import Link from "next/link";
@@ -34,18 +34,18 @@ export default function PrivacyPage() {
 
           <Section title="2. How We Use Your Data">
             <ul>
-              <li>To provide CRM functionality — storing, organizing, and analyzing your donor data.</li>
-              <li>To power AI features — donor briefs, email generation, and cause matching. AI prompts include donor context but never raw PII beyond what is necessary.</li>
+              <li>To provide CRM functionality: storing, organizing and analyzing your donor data.</li>
+              <li>To power AI features: donor briefs, email generation and cause matching. AI prompts include donor context but never raw PII beyond what is necessary.</li>
               <li>To send emails on your behalf via our email service (Resend) when you use the email feature.</li>
-              <li>To improve ChaiRaise — aggregated, anonymized usage patterns only.</li>
+              <li>To improve ChaiRaise, using aggregated and anonymized usage patterns only.</li>
             </ul>
           </Section>
 
           <Section title="3. AI and Your Data">
             <p>When you use AI features (email generation, donor briefs, org research), donor context is sent to our AI provider (Anthropic) via server-side API calls. Specifically:</p>
             <ul>
-              <li>AI requests are processed through our secure server — your API keys and donor data never leave the server.</li>
-              <li>We send only the minimum context needed (donor name, community, giving history, org mission) — never full database exports.</li>
+              <li>AI requests are processed through our secure server, so your API keys and donor data never leave it.</li>
+              <li>We send only the minimum context needed (donor name, community, giving history, org mission), never full database exports.</li>
               <li>Anthropic does not train on API inputs per their commercial terms.</li>
               <li>You can disable AI features entirely in Settings.</li>
             </ul>
@@ -63,10 +63,10 @@ export default function PrivacyPage() {
           <Section title="5. Data Sharing">
             <p>We do NOT sell, rent, or share your donor data with anyone. Period. Your data is shared only with:</p>
             <ul>
-              <li><strong>Anthropic</strong> — AI provider, for generating email drafts and donor insights (minimal context, no training).</li>
-              <li><strong>Resend</strong> — Email delivery service, only when you send emails through ChaiRaise.</li>
-              <li><strong>Neon</strong> — Database hosting provider (encrypted at rest).</li>
-              <li><strong>Vercel</strong> — Application hosting (SOC 2 compliant).</li>
+              <li><strong>Anthropic</strong>: AI provider, for generating email drafts and donor insights (minimal context, no training).</li>
+              <li><strong>Resend</strong>: Email delivery service, only when you send emails through ChaiRaise.</li>
+              <li><strong>Neon</strong>: Database hosting provider (encrypted at rest).</li>
+              <li><strong>Vercel</strong>: Application hosting (SOC 2 compliant).</li>
             </ul>
           </Section>
 
@@ -85,7 +85,7 @@ export default function PrivacyPage() {
               <li>Religious affiliation is classified as special category data under GDPR Article 9.</li>
               <li>We implement additional security measures for donor lists, including audit logging of all data access.</li>
               <li>We never expose donor lists publicly or to other organizations on the platform.</li>
-              <li>Each organization's data is fully isolated — no cross-org data access is possible.</li>
+              <li>Each organization's data is fully isolated, so no cross-org data access is possible.</li>
             </ul>
           </Section>
 

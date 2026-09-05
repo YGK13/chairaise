@@ -1,6 +1,6 @@
 'use client';
 // ============================================================
-// ChaiRaise — Public homepage
+// ChaiRaise: public homepage
 //
 // Outcome-first marketing surface for nonprofit development directors and
 // executive directors. All copy, samples, pricing and FAQ come from
@@ -325,8 +325,11 @@ export default function LandingPage() {
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    root.classList.add("cr-js");
+    // Only opt in to the hidden-then-reveal styling when we can actually
+    // reveal: `.cr-js .cr-reveal` starts at opacity 0, so adding the class
+    // without a working observer would leave the page permanently blank.
     if (typeof IntersectionObserver === "undefined") return;
+    root.classList.add("cr-js");
     const els = root.querySelectorAll(".cr-reveal");
     const io = new IntersectionObserver((entries) => {
       entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("is-in"); io.unobserve(en.target); } });
@@ -537,7 +540,7 @@ export default function LandingPage() {
             <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto 40px" }} className="cr-reveal">
               <p className="cr-eyebrow">Pricing</p>
               <h2 id="cr-pricing-title" className="cr-h2">Free until you outgrow 100 donors</h2>
-              <p className="cr-lead">Three plans, no hidden tiers. The donor cap is enforced on the server, Starter never expires and it never asks for a card.</p>
+              <p className="cr-lead">Three plans, no hidden tiers. The donor cap is enforced on the server. Starter never expires and never asks for a card.</p>
             </div>
             <div className="cr-pricing">
               {PRICING.map((p) => (

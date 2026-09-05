@@ -1,5 +1,5 @@
 // ============================================================
-// ChaiRaise — Public marketing surface: single source of truth
+// ChaiRaise public marketing surface: single source of truth
 //
 // Everything the public site says about the product lives here so the
 // homepage, the JSON-LD, the sitemap, llms.txt and the tests can never drift
