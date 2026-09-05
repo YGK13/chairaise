@@ -1,6 +1,6 @@
 'use client';
 // ============================================================
-// ChaiRaise — Public homepage
+// ChaiRaise: public homepage
 //
 // Outcome-first marketing surface for nonprofit development directors and
 // executive directors. All copy, samples, pricing and FAQ come from
@@ -274,7 +274,7 @@ function Newsletter() {
       <button type="submit" className="cr-btn cr-btn-primary" disabled={state === "sending"}>{state === "sending" ? "Subscribing…" : "Subscribe"}</button>
       {state === "fallback" && (
         <p style={{ width: "100%", fontSize: 13, color: C.text3, margin: "6px 0 0" }}>
-          Our signup service is busy. <a href={SITE.newsletter.url} target="_blank" rel="noopener noreferrer" style={{ color: C.accent }}>Subscribe directly on {SITE.newsletter.name}</a>.
+          We could not add you automatically. <a href={SITE.newsletter.url} target="_blank" rel="noopener noreferrer" style={{ color: C.accent }}>Subscribe directly on {SITE.newsletter.name}</a>.
         </p>
       )}
     </form>
@@ -304,12 +304,32 @@ export default function LandingPage() {
   const active = SAMPLES.find((s) => s.key === tab) || SAMPLES[0];
   const closeContact = useCallback(() => setContactPlan(null), []);
 
+  // WAI-ARIA tabs: one tab stop, arrow keys move between tabs, every panel is
+  // in the DOM (hidden when inactive) so all four samples are server-rendered.
+  const selectTab = useCallback((key) => { setTab(key); trackCta("sample_tab", { tab: key }); }, []);
+  const onTabKey = (e) => {
+    const keys = SAMPLES.map((s) => s.key);
+    const i = keys.indexOf(tab);
+    let next = null;
+    if (e.key === "ArrowRight") next = keys[(i + 1) % keys.length];
+    else if (e.key === "ArrowLeft") next = keys[(i - 1 + keys.length) % keys.length];
+    else if (e.key === "Home") next = keys[0];
+    else if (e.key === "End") next = keys[keys.length - 1];
+    if (!next) return;
+    e.preventDefault();
+    selectTab(next);
+    document.getElementById(`tab-${next}`)?.focus();
+  };
+
   // Reveal-on-scroll. Content is fully visible until JS runs, then animates in.
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    root.classList.add("cr-js");
+    // Only opt in to the hidden-then-reveal styling when we can actually
+    // reveal: `.cr-js .cr-reveal` starts at opacity 0, so adding the class
+    // without a working observer would leave the page permanently blank.
     if (typeof IntersectionObserver === "undefined") return;
+    root.classList.add("cr-js");
     const els = root.querySelectorAll(".cr-reveal");
     const io = new IntersectionObserver((entries) => {
       entries.forEach((en) => { if (en.isIntersecting) { en.target.classList.add("is-in"); io.unobserve(en.target); } });
@@ -403,9 +423,9 @@ export default function LandingPage() {
             </div>
             <div className="cr-samples">
               <div>
-                <div className="cr-tabs" role="tablist" aria-label="Sample output types">
+                <div className="cr-tabs" role="tablist" aria-label="Sample output types" onKeyDown={onTabKey}>
                   {SAMPLES.map((s) => (
-                    <button key={s.key} type="button" role="tab" id={`tab-${s.key}`} aria-selected={tab === s.key} aria-controls={`panel-${s.key}`} className="cr-tab" onClick={() => { setTab(s.key); trackCta("sample_tab", { tab: s.key }); }}>
+                    <button key={s.key} type="button" role="tab" id={`tab-${s.key}`} aria-selected={tab === s.key} aria-controls={`panel-${s.key}`} tabIndex={tab === s.key ? 0 : -1} className="cr-tab" onClick={() => selectTab(s.key)}>
                       {s.label}
                     </button>
                   ))}
@@ -422,8 +442,12 @@ export default function LandingPage() {
                 </ul>
                 <Link className="cr-btn cr-btn-primary" href="/auth/signin" style={{ marginTop: 20 }} data-cta="samples_start" onClick={() => trackCta("samples_start")}>Draft your first letter free</Link>
               </div>
-              <div role="tabpanel" id={`panel-${active.key}`} aria-labelledby={`tab-${active.key}`} key={active.key}>
-                <SampleDoc sample={active} />
+              <div>
+                {SAMPLES.map((s) => (
+                  <div key={s.key} role="tabpanel" id={`panel-${s.key}`} aria-labelledby={`tab-${s.key}`} tabIndex={0} hidden={s.key !== tab}>
+                    <SampleDoc sample={s} />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -481,7 +505,7 @@ export default function LandingPage() {
             <div style={{ maxWidth: 680, marginBottom: 32 }} className="cr-reveal">
               <p className="cr-eyebrow">Data handling</p>
               <h2 id="cr-trust-title" className="cr-h2">Your donor list is the most sensitive file you own</h2>
-              <p className="cr-lead">Every claim below is implemented in the product and itemized, control by control, on the <Link href="/security" style={{ color: C.accent }}>Security page</Link>. Sub-processors: Vercel (hosting), Neon (database), Anthropic (AI via our server), Stripe (billing), Resend (platform email) and Google (optional sign-in).</p>
+              <p className="cr-lead">Every claim below is implemented in the product and itemized, control by control, on the <Link href="/security" style={{ color: C.accent }}>Security page</Link>, which also names every sub-processor (hosting, database, AI, billing, platform email and optional sign-in).</p>
             </div>
             <div className="cr-grid-2">
               {TRUST.map((t) => (
@@ -516,7 +540,7 @@ export default function LandingPage() {
             <div style={{ textAlign: "center", maxWidth: 720, margin: "0 auto 40px" }} className="cr-reveal">
               <p className="cr-eyebrow">Pricing</p>
               <h2 id="cr-pricing-title" className="cr-h2">Free until you outgrow 100 donors</h2>
-              <p className="cr-lead">The plans below are exactly what the server enforces. Starter never expires and never asks for a card.</p>
+              <p className="cr-lead">Three plans, no hidden tiers. The donor cap is enforced on the server. Starter never expires and never asks for a card.</p>
             </div>
             <div className="cr-pricing">
               {PRICING.map((p) => (

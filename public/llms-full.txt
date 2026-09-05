@@ -1,6 +1,6 @@
-# ChaiRaise — full reference for generative engines
+# ChaiRaise: full reference for generative engines
 
-Last updated: 2026-09-02. Canonical: https://chairaise.com/. Short index: https://chairaise.com/llms.txt
+Last updated: 2026-09-04. Canonical: https://chairaise.com/. Short index: https://chairaise.com/llms.txt
 
 ## Entity
 - Name: ChaiRaise
@@ -33,8 +33,8 @@ Development directors, executive directors, rabbis and lay leaders, and voluntee
 13. Team: Admin, Manager, Fundraiser and Viewer roles; 1 seat on Starter, 5 on Professional, unlimited on Enterprise.
 14. Not included today: grant or foundation proposal drafting; wealth screening data; payment processing for donations.
 
-## Pricing (USD, as enforced server-side)
-- Starter: $0, forever. Up to 100 donors, 1 seat. AI letters, pipeline and Kanban, CSV import/export.
+## Pricing (USD)
+- Starter: $0, forever. Up to 100 donors (the cap is enforced server-side), 1 seat. AI letters, pipeline and Kanban, CSV import/export.
 - Professional: $149 per month billed annually, 14-day free trial. Unlimited donors, 5 seats. Adds org intelligence, cause match, donor briefs, strategy coach, social graph, integrations, batch campaigns, priority support.
 - Enterprise: custom. Multi-org management, custom integrations, dedicated onboarding, unlimited seats, SLA and compliance review.
 - Billing through Stripe Checkout; ChaiRaise never stores card numbers.
@@ -44,7 +44,7 @@ Development directors, executive directors, rabbis and lay leaders, and voluntee
 - AI: single authenticated server endpoint, rate-limited (30 calls per user per hour); provider keys never reach the browser; only minimal donor context is sent; provider does not train on API inputs; AI can be disabled in Settings.
 - Encryption: TLS with HSTS in transit; database encrypted at rest; mail credentials additionally encrypted app-side with AES-256-GCM; passwords hashed with scrypt.
 - Headers: Content-Security-Policy, X-Frame-Options DENY, nosniff, strict referrer policy, restrictive permissions policy.
-- Sub-processors: Vercel (hosting), Neon (Postgres), Anthropic (AI via server), Stripe (billing), Resend (platform email), Google (optional SSO).
+- Sub-processors (hosting, database, AI, billing, platform email, optional sign-in) are listed by name at https://chairaise.com/security.
 - Export and deletion available to the customer without a support ticket.
 
 ## Frequently asked questions

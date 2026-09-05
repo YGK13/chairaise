@@ -15,7 +15,7 @@ const TEXT = "#e4e4e7";
 const TEXT_MUTED = "#a1a1aa";
 
 export const metadata = {
-  title: "Blog: AI Fundraising Playbooks for Jewish Nonprofits",
+  title: "Blog: AI Fundraising Playbooks for Nonprofits",
   description:
     "Practical guides and frameworks for Jewish fundraising professionals. AI, donor management, synagogue ops and federation-level strategy for every size org.",
   keywords: [
@@ -27,11 +27,12 @@ export const metadata = {
   ],
   alternates: { canonical: "https://chairaise.com/blog" },
   openGraph: {
-    title: "Blog: AI Fundraising Playbooks for Jewish Nonprofits",
+    title: "Blog: AI Fundraising Playbooks for Nonprofits",
     description:
       "Practical guides and frameworks for Jewish fundraising professionals.",
     url: "https://chairaise.com/blog",
     type: "website",
+    images: [{ url: "https://chairaise.com/opengraph-image", width: 1200, height: 630, alt: "ChaiRaise" }],
   },
 };
 
@@ -47,6 +48,15 @@ export default function BlogIndexPage() {
         minHeight: "100vh",
       }}
     >
+      <style>{`
+        /* Keep the header on one line on small phones: the wordmark already
+           links home, so the redundant "Home" link is dropped under 430px. */
+        @media (max-width: 430px) {
+          .blog-nav-inner { padding: 0 16px !important; }
+          .blog-nav-home { display: none !important; }
+          .blog-nav-links { gap: 12px !important; }
+        }
+      `}</style>
       <nav
         style={{
           position: "sticky",
@@ -58,6 +68,7 @@ export default function BlogIndexPage() {
         }}
       >
         <div
+          className="blog-nav-inner"
           style={{
             maxWidth: 1100,
             margin: "0 auto",
@@ -72,10 +83,10 @@ export default function BlogIndexPage() {
             <span style={{ width: 32, height: 32, background: ACCENT, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#1a1103" }}>✡</span>
             ChaiRaise
           </Link>
-          <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-            <Link href="/" style={{ color: TEXT_MUTED, fontSize: 14, textDecoration: "none" }}>Home</Link>
+          <div className="blog-nav-links" style={{ display: "flex", gap: 16, alignItems: "center", marginLeft: 16, whiteSpace: "nowrap" }}>
+            <Link href="/" className="blog-nav-home" style={{ color: TEXT_MUTED, fontSize: 14, textDecoration: "none" }}>Home</Link>
             <Link href="/blog" style={{ color: TEXT, fontSize: 14, textDecoration: "none", fontWeight: 600 }}>Blog</Link>
-            <Link href="/auth/signin" style={{ background: ACCENT, color: "#1a1103", padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
+            <Link href="/auth/signin" style={{ background: ACCENT, color: "#1a1103", padding: "9px 16px", borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: "none", whiteSpace: "nowrap" }}>
               Start free
             </Link>
           </div>

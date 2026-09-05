@@ -32,7 +32,7 @@ const PILLARS = [
   {
     icon: "✉️",
     title: "Your mailbox, your mail server",
-    body: "Connect your own email (Gmail, Outlook, or any provider) and outreach is relayed through YOUR mail server, from YOUR address. We do not keep a copy of your mailbox. Your SMTP password is encrypted with AES-256-GCM before it is stored and is never returned by our API — not even to you.",
+    body: "Connect your own email (Gmail, Outlook, or any provider) and outreach is relayed through YOUR mail server, from YOUR address. We do not keep a copy of your mailbox. Your SMTP password is encrypted with AES-256-GCM before it is stored and is never returned by our API, not even to you.",
   },
   {
     icon: "💬",
@@ -42,7 +42,7 @@ const PILLARS = [
   {
     icon: "📤",
     title: "Take your data and go, any time",
-    body: "One click exports every record we hold for your organization — donors, gifts, activities, pipeline, campaigns and your full audit trail — as a single JSON file. No support ticket, no export fee, no lock-in. Credentials are deliberately excluded from exports.",
+    body: "One click exports every record we hold for your organization (donors, gifts, activities, pipeline, campaigns and your full audit trail) as a single JSON file. No support ticket, no export fee, no lock-in. Credentials are deliberately excluded from exports.",
   },
   {
     icon: "🗑️",
@@ -93,7 +93,7 @@ export default function SecurityPage() {
             <div style={{ width: 30, height: 30, background: C.accent, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 12, color: "#09090b" }}>CR</div>
             <span style={{ fontSize: 17, fontWeight: 800, letterSpacing: -0.5 }}>ChaiRaise</span>
           </Link>
-          <Link href="/auth/signin" style={{ padding: "8px 18px", background: C.accent, color: "#09090b", borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: "none" }}>Get Started Free</Link>
+          <Link href="/auth/signin" style={{ padding: "8px 18px", background: C.accent, color: "#09090b", borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: "none" }}>Start free</Link>
         </div>
       </nav>
 
@@ -104,10 +104,10 @@ export default function SecurityPage() {
             🛡️ Security &amp; Privacy
           </div>
           <h1 className="sec-h1" style={{ fontSize: 52, fontWeight: 800, lineHeight: 1.08, letterSpacing: -1.8, marginBottom: 18 }}>
-            Your donor list is the<br />most sensitive file you own
+            Your donor list is the most sensitive file you own
           </h1>
           <p style={{ fontSize: 18, color: C.text2, lineHeight: 1.65, maxWidth: 640 }}>
-            Names, capacity estimates, giving history, private notes about people who trust your organization. We built ChaiRaise on the assumption that this data should never be casually exposed, resold, mined, or held hostage. This page describes exactly how it is protected — and every claim here is something we actually implemented.
+            Names, capacity estimates, giving history, private notes about people who trust your organization. We built ChaiRaise on the assumption that this data should never be casually exposed, resold, mined, or held hostage. This page describes exactly how it is protected, and every claim here is something we actually implemented.
           </p>
         </div>
       </section>
@@ -187,7 +187,7 @@ export default function SecurityPage() {
 
       {/* Footer */}
       <footer style={{ borderTop: `1px solid ${C.border}`, padding: "28px 24px", textAlign: "center" }}>
-        <p style={{ fontSize: 11, color: "#52525b" }}>© 2026 ChaiRaise. Multiply your impact by 18.</p>
+        <p style={{ fontSize: 11, color: "#52525b" }}>© 2026 ChaiRaise, a Portfolio Leverage Company product. <Link href="/" style={{ color: "#71717a", textDecoration: "none" }}>Home</Link></p>
       </footer>
     </div>
   );

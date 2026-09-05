@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import fs from "fs";
 import path from "path";
 import { POSTS, getPost } from "@/content/blog/posts";
+import { SITE, breadcrumbLd } from "@/content/site";
 
 // ============================================================================
 // DYNAMIC BLOG ARTICLE PAGE — /blog/[slug]
@@ -26,7 +27,7 @@ export async function generateMetadata({ params }) {
   const post = getPost(slug);
   if (!post) return { title: "Not Found" };
   return {
-    title: { absolute: `${post.title} | ChaiRaise` },
+    title: { absolute: post.seoTitle || `${post.title} | ChaiRaise` },
     alternates: { canonical: `https://chairaise.com/blog/${post.slug}` },
     description: post.description,
     keywords: post.keywords,
@@ -36,6 +37,7 @@ export async function generateMetadata({ params }) {
       url: `https://chairaise.com/blog/${post.slug}`,
       type: "article",
       publishedTime: post.date,
+      images: [{ url: `${SITE.url}/opengraph-image`, width: 1200, height: 630, alt: post.title }],
     },
   };
 }
@@ -183,12 +185,24 @@ export default async function ArticlePage({ params }) {
 
   const articleSchema = {
     "@context": "https://schema.org",
-    "@type": "Article",
-    headline: post.title,
-    description: post.description,
-    author: { "@type": "Person", name: "Yuri Kruman", url: "https://www.linkedin.com/in/yurikruman" },
-    datePublished: post.date,
-    publisher: { "@type": "Organization", name: "ChaiRaise", url: "https://chairaise.com" },
+    "@graph": [
+      {
+        "@type": "Article",
+        headline: post.title,
+        description: post.description,
+        image: [`${SITE.url}/opengraph-image`],
+        mainEntityOfPage: `${SITE.url}/blog/${post.slug}`,
+        author: { "@type": "Person", name: SITE.author.name, url: SITE.author.url, sameAs: SITE.author.sameAs },
+        datePublished: post.date,
+        dateModified: post.date,
+        publisher: { "@type": "Organization", name: SITE.publisher.name, url: SITE.publisher.url },
+      },
+      breadcrumbLd([
+        { name: "Home", url: `${SITE.url}/` },
+        { name: "Blog", url: `${SITE.url}/blog` },
+        { name: post.title, url: `${SITE.url}/blog/${post.slug}` },
+      ]),
+    ],
   };
 
   return (
@@ -200,6 +214,15 @@ export default async function ArticlePage({ params }) {
         minHeight: "100vh",
       }}
     >
+      <style>{`
+        /* Keep the header on one line on small phones: the wordmark already
+           links home, so the redundant "Home" link is dropped under 430px. */
+        @media (max-width: 430px) {
+          .blog-nav-inner { padding: 0 16px !important; }
+          .blog-nav-home { display: none !important; }
+          .blog-nav-links { gap: 12px !important; }
+        }
+      `}</style>
       <nav
         style={{
           position: "sticky",
@@ -211,6 +234,7 @@ export default async function ArticlePage({ params }) {
         }}
       >
         <div
+          className="blog-nav-inner"
           style={{
             maxWidth: 1100,
             margin: "0 auto",
@@ -225,10 +249,10 @@ export default async function ArticlePage({ params }) {
             <span style={{ width: 32, height: 32, background: ACCENT, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: "#1a1103" }}>✡</span>
             ChaiRaise
           </Link>
-          <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
-            <Link href="/" style={{ color: TEXT_MUTED, fontSize: 14, textDecoration: "none" }}>Home</Link>
+          <div className="blog-nav-links" style={{ display: "flex", gap: 16, alignItems: "center", marginLeft: 16, whiteSpace: "nowrap" }}>
+            <Link href="/" className="blog-nav-home" style={{ color: TEXT_MUTED, fontSize: 14, textDecoration: "none" }}>Home</Link>
             <Link href="/blog" style={{ color: TEXT_MUTED, fontSize: 14, textDecoration: "none" }}>Blog</Link>
-            <Link href="/auth/signin" style={{ background: ACCENT, color: "#1a1103", padding: "10px 20px", borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: "none" }}>
+            <Link href="/auth/signin" style={{ background: ACCENT, color: "#1a1103", padding: "9px 16px", borderRadius: 8, fontWeight: 700, fontSize: 14, textDecoration: "none", whiteSpace: "nowrap" }}>
               Start free
             </Link>
           </div>
@@ -263,10 +287,10 @@ export default async function ArticlePage({ params }) {
           }}
         >
           <h3 style={{ fontSize: 22, fontWeight: 700, marginBottom: 12, color: TEXT }}>
-            Multiply your fundraising impact by 18x.
+            Your next appeal, drafted from your own donor records.
           </h3>
           <p style={{ color: TEXT_MUTED, marginBottom: 20, lineHeight: 1.6 }}>
-            AI-native donor intelligence built for Jewish organizations. Purpose-built for synagogues, yeshivot and federations.
+            ChaiRaise drafts donor letters, appeals and outreach, suggests the ask and tracks every relationship. Free for your first 100 donors, no card.
           </p>
           <Link
             href="/auth/signin"
@@ -281,7 +305,7 @@ export default async function ArticlePage({ params }) {
               display: "inline-block",
             }}
           >
-            Request a Demo →
+            Start free
           </Link>
         </div>
       </article>

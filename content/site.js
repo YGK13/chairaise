@@ -1,5 +1,5 @@
 // ============================================================
-// ChaiRaise — Public marketing surface: single source of truth
+// ChaiRaise public marketing surface: single source of truth
 //
 // Everything the public site says about the product lives here so the
 // homepage, the JSON-LD, the sitemap, llms.txt and the tests can never drift
@@ -19,7 +19,7 @@ export const SITE = {
   description:
     "AI fundraising copilot and donor CRM for nonprofits. Donor letters, appeals and outreach drafted in minutes, with suggested asks. Free for 100 donors.",
   contactEmail: "hello@chairaise.com",
-  lastUpdated: "2026-09-02",
+  lastUpdated: "2026-09-04",
   launched: "2026-03",
   category: "Nonprofit fundraising software",
   publisher: {
@@ -146,7 +146,7 @@ export const SAMPLES = [
     label: "Donor letter",
     kind: "Personalized email · Family Legacy template",
     inputs: ["Donor record", "Org profile", "Template T-D"],
-    subject: "Miriam — the Adler legacy and Kehillat Shalom's next chapter",
+    subject: "Miriam, the Adler legacy and Kehillat Shalom's next chapter",
     body: [
       "Dear Miriam,",
       "Your family's name is on the beit midrash doors for a reason. Three generations of Adlers have kept Kehillat Shalom's learning alive, and the scholarship your parents endowed in 1998 still sends two students a year to Israel.",
@@ -161,7 +161,7 @@ export const SAMPLES = [
     label: "High Holiday appeal",
     kind: "Batch campaign · merge fields, one draft per donor",
     inputs: ["50 donors", "Giving window: High Holidays", "Template T-B"],
-    subject: "{First} — before Rosh Hashanah, a request from {OrgName}",
+    subject: "{First}, before Rosh Hashanah: a request from {OrgName}",
     body: [
       "Dear {First},",
       "As the year turns, {OrgName} is asking every member of the {Synagogue} community to do one concrete thing: sponsor a seat in the new family minyan so no one is turned away on Yom Kippur.",

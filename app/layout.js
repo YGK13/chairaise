@@ -4,7 +4,7 @@ import { SITE } from '@/content/site';
 const SITE_URL = SITE.url;
 
 export const metadata = {
-  metadataBase: new URL(process.env.NEXTAUTH_URL || SITE_URL),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: 'ChaiRaise: AI Donor Letters, Appeals & CRM for Nonprofits',
     template: '%s | ChaiRaise',

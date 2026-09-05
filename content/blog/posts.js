@@ -8,8 +8,9 @@ export const POSTS = [
   {
     slug: "ai-jewish-fundraising-guide-2026",
     title: "The Complete Guide to AI-Powered Jewish Fundraising in 2026",
+    seoTitle: "AI-Powered Jewish Fundraising Guide 2026 | ChaiRaise",
     description:
-      "How Jewish organizations use AI to transform donor cultivation. The 5-stage pipeline, tool comparison, and practical framework for synagogues, yeshivot and federations.",
+      "How Jewish organizations use AI for donor cultivation: a 5-stage pipeline, tool comparison and practical framework for synagogues and federations.",
     keywords: [
       "jewish fundraising",
       "ai fundraising",
@@ -25,8 +26,9 @@ export const POSTS = [
     slug: "synagogue-donor-management-small-orgs",
     title:
       "Synagogue Donor Management: How Small Jewish Organizations Can Compete with Federations",
+    seoTitle: "Synagogue Donor Management for Small Orgs | ChaiRaise",
     description:
-      "Small Jewish orgs can match federation-level fundraising sophistication using AI. The 5-step playbook for synagogues and day schools with under 500 families.",
+      "How small Jewish organizations match federation-level fundraising with AI: a 5-step playbook for synagogues and day schools with under 500 families.",
     keywords: [
       "synagogue donor management",
       "small jewish organization fundraising",
