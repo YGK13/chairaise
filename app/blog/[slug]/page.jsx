@@ -210,7 +210,7 @@ export default async function ArticlePage({ params }) {
       style={{
         background: BG,
         color: TEXT,
-        fontFamily: "Inter, system-ui, sans-serif",
+        fontFamily: "var(--font-inter)",
         minHeight: "100vh",
       }}
     >

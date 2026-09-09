@@ -21,7 +21,7 @@ function CRMWithAuth() {
     return (
       <div style={{
         height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#09090b', color: '#fafafa', fontFamily: 'Inter, system-ui, sans-serif'
+        background: '#09090b', color: '#fafafa', fontFamily: 'var(--font-inter)'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{

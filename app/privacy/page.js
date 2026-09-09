@@ -14,7 +14,7 @@ export default function PrivacyPage() {
   return (
     <div style={{
       background: "#09090b", color: "#fafafa", minHeight: "100vh",
-      fontFamily: "'Inter', system-ui, sans-serif", padding: "80px 24px",
+      fontFamily: "var(--font-inter)", padding: "80px 24px",
     }}>
       <div style={{ maxWidth: 720, margin: "0 auto" }}>
         <Link href="/" style={{ color: "#f59e0b", fontSize: 12, textDecoration: "none" }}>← Back to ChaiRaise</Link>

@@ -19,7 +19,7 @@ const C = {
   text: "#f4f4f5", dim: "#8a8a94", faint: "#5a5a63",
   amber: "#f59e0b", green: "#22c55e", blue: "#60a5fa", red: "#ef4444",
 };
-const mono = "'JetBrains Mono', ui-monospace, monospace";
+const mono = "var(--font-jetbrains-mono)";
 
 const fmtInt = (n) => (n ?? 0).toLocaleString("en-US");
 const fmtUsd = (cents) => "$" + Math.round((Number(cents) || 0) / 100).toLocaleString("en-US");
@@ -93,7 +93,7 @@ export default function AdminConsole() {
   const funnelBase = f.signed_up || 0;
 
   return (
-    <div style={{ background: C.bg, color: C.text, minHeight: "100vh", fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div style={{ background: C.bg, color: C.text, minHeight: "100vh", fontFamily: "var(--font-inter)" }}>
       <style>{`
         .ops-num { font-family:${mono}; letter-spacing:-0.5px; font-variant-numeric:tabular-nums; }
         .ops-grid { max-width:1180px; margin:0 auto; padding:0 24px; }
@@ -432,7 +432,7 @@ function Td({ children, num, left, dim, accent, style }) {
 }
 function Gate({ title, body, retry, spin }) {
   return (
-    <div style={{ background: C.bg, color: C.text, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter', system-ui, sans-serif", padding: 24 }}>
+    <div style={{ background: C.bg, color: C.text, minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-inter)", padding: 24 }}>
       <div style={{ textAlign: "center", maxWidth: 380 }}>
         <div style={{ width: 44, height: 44, background: C.amber, borderRadius: 11, display: "inline-flex", alignItems: "center", justifyContent: "center", fontWeight: 800, color: C.bg, marginBottom: 16, ...(spin ? { animation: "opsSpin 1.4s linear infinite" } : {}) }}>CR</div>
         <style>{`@keyframes opsSpin{to{transform:rotate(360deg)}}`}</style>

@@ -31,7 +31,7 @@ button:disabled,[aria-disabled="true"]{cursor:not-allowed;opacity:0.5;}
   --radius:8px;--radius-lg:12px;--radius-sm:6px;
   --shadow:0 1px 3px rgba(0,0,0,0.4);--shadow-lg:0 8px 32px rgba(0,0,0,0.5);
 }
-body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;}
+body{font-family:var(--font-inter);background:var(--bg);color:var(--text);min-height:100vh;font-size:13px;line-height:1.5;-webkit-font-smoothing:antialiased;}
 .app-shell{display:flex;height:100vh;overflow:hidden;}
 .nav-rail{width:56px;min-width:56px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:4px;z-index:100;}
 .nav-logo{width:32px;height:32px;background:var(--accent);border-radius:var(--radius);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--bg);margin-bottom:12px;cursor:pointer;}
@@ -79,7 +79,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .cell-warmth{display:flex;align-items:center;gap:6px;}
 .warmth-bar{width:48px;height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;}
 .warmth-fill{height:100%;border-radius:2px;transition:width .3s;}
-.cell-amount{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;}
+.cell-amount{font-family:var(--font-jetbrains-mono);font-size:12px;font-weight:500;}
 .cell-stage{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:var(--radius-sm);font-size:11px;font-weight:500;}
 .board{display:flex;gap:12px;padding:16px 20px;overflow-x:auto;height:100%;align-items:flex-start;}
 .board::-webkit-scrollbar{height:6px;}
@@ -97,7 +97,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .board-card .card-name{font-size:13px;font-weight:600;margin-bottom:4px;}
 .board-card .card-meta{font-size:11px;color:var(--text3);display:flex;gap:8px;}
 .board-card .card-tags{display:flex;gap:3px;margin-top:6px;flex-wrap:wrap;}
-.board-card .card-amount{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--green);margin-top:6px;}
+.board-card .card-amount{font-family:var(--font-jetbrains-mono);font-size:12px;font-weight:600;color:var(--green);margin-top:6px;}
 .timeline{padding:16px 20px;max-width:700px;}
 .timeline-item{display:flex;gap:12px;padding-bottom:20px;position:relative;}
 .timeline-item::before{content:'';position:absolute;left:15px;top:32px;bottom:0;width:1px;background:var(--border);}
@@ -127,7 +127,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .funnel-bar-bg{flex:1;height:24px;background:var(--surface2);border-radius:4px;overflow:hidden;}
 .funnel-bar-fill{height:100%;border-radius:4px;transition:width .5s;display:flex;align-items:center;padding-left:8px;}
 .funnel-bar-fill span{font-size:10px;font-weight:700;color:var(--bg);}
-.funnel-count{font-size:13px;font-weight:700;width:40px;text-align:right;font-family:'JetBrains Mono',monospace;}
+.funnel-count{font-size:13px;font-weight:700;width:40px;text-align:right;font-family:var(--font-jetbrains-mono);}
 .detail-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;transition:opacity .2s;}
 .detail-panel{position:fixed;top:0;right:0;width:520px;height:100vh;background:var(--surface);border-left:1px solid var(--border);z-index:201;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);}
 .detail-header{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;}
@@ -390,7 +390,7 @@ body{font-family:'Inter',system-ui,sans-serif;background:var(--bg);color:var(--t
 .lb-name{font-size:13px;font-weight:600;}
 .lb-sub{font-size:11px;color:var(--text3);}
 .lb-score{text-align:right;flex-shrink:0;}
-.lb-score-val{font-size:18px;font-weight:800;font-family:'JetBrains Mono',monospace;}
+.lb-score-val{font-size:18px;font-weight:800;font-family:var(--font-jetbrains-mono);}
 .lb-score-lbl{font-size:9px;color:var(--text4);text-transform:uppercase;}
 /* ============ Tags System ============ */
 .tag{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:600;cursor:default;transition:all .15s;}

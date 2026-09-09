@@ -8,7 +8,7 @@ export default function Error({ error, reset }) {
   return (
     <div style={{
       height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#09090b', color: '#fafafa', fontFamily: 'Inter, system-ui, sans-serif',
+      background: '#09090b', color: '#fafafa', fontFamily: 'var(--font-inter)',
     }}>
       <div style={{
         background: '#18181b', border: '1px solid #27272a', borderRadius: 12,

@@ -253,7 +253,7 @@ function WhatsAppHub({donors,onLogActivities}){
           <div>
             <h3 style={{fontSize:15,fontWeight:700,color:"var(--red)"}}>Bridge Server Offline</h3>
             <p style={{fontSize:12,color:"var(--text3)",marginTop:4}}>Start the bridge server:</p>
-            <code style={{display:"block",background:"var(--surface2)",padding:"8px 12px",borderRadius:"var(--radius-sm)",fontSize:12,marginTop:8,color:"var(--accent)",fontFamily:"'JetBrains Mono',monospace"}}>node whatsapp_bridge.js</code>
+            <code style={{display:"block",background:"var(--surface2)",padding:"8px 12px",borderRadius:"var(--radius-sm)",fontSize:12,marginTop:8,color:"var(--accent)",fontFamily:"var(--font-jetbrains-mono)"}}>node whatsapp_bridge.js</code>
           </div>
         </div>
       </div>}

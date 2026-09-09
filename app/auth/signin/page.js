@@ -109,7 +109,7 @@ function SignInPage() {
       position: "fixed", inset: 0,
       background: "linear-gradient(135deg, #09090b 0%, #1a1a2e 50%, #09090b 100%)",
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontFamily: "'Inter', system-ui, sans-serif",
+      fontFamily: "var(--font-inter)",
     }}>
       <div style={{
         background: "#18181b", border: "1px solid #27272a", borderRadius: 12,

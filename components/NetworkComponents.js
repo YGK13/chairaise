@@ -607,17 +607,17 @@ function NetworkGraphSVG({graphData,donors,graphContacts,sortedPaths}){
           {/* Label */}
           <text x={node.x} y={node.y+node.r+12} textAnchor="middle"
             fill={isHovered?"var(--text)":"var(--text3)"} fontSize={node.type==="you"?11:node.type==="donor"?10:8}
-            fontWeight={isHovered||node.type==="you"?700:400} fontFamily="Inter,sans-serif">
+            fontWeight={isHovered||node.type==="you"?700:400} style={{fontFamily:"var(--font-inter)"}}>
             {node.name.length>18?node.name.slice(0,16)+"...":node.name}
           </text>
           {/* Tier badge for donors */}
           {node.type==="donor"&&<text x={node.x} y={node.y+4} textAnchor="middle"
-            fill="#fff" fontSize={7} fontWeight={800} fontFamily="Inter,sans-serif">
+            fill="#fff" fontSize={7} fontWeight={800} style={{fontFamily:"var(--font-inter)"}}>
             {node.tier==="Tier 1"?"T1":node.tier==="Tier 2"?"T2":"T3"}
           </text>}
           {/* YOU label inside */}
           {node.type==="you"&&<text x={node.x} y={node.y+5} textAnchor="middle"
-            fill="var(--bg)" fontSize={10} fontWeight={800} fontFamily="Inter,sans-serif">YOU</text>}
+            fill="var(--bg)" fontSize={10} fontWeight={800} style={{fontFamily:"var(--font-inter)"}}>YOU</text>}
         </g>);
       })}
     </svg>

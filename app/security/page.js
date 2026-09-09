@@ -75,7 +75,7 @@ const SUBPROCESSORS = [
 
 export default function SecurityPage() {
   return (
-    <div style={{ background: C.bg, color: C.text, fontFamily: "'Inter', system-ui, sans-serif", minHeight: "100vh" }}>
+    <div style={{ background: C.bg, color: C.text, fontFamily: "var(--font-inter)", minHeight: "100vh" }}>
       <style>{`
         .sec-card { transition: border-color .2s ease, transform .2s ease; }
         .sec-card:hover { border-color: ${C.accent} !important; transform: translateY(-2px); }

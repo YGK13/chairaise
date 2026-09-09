@@ -1,5 +1,24 @@
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
 import { SITE } from '@/content/site';
+
+// Self-hosted at build time by next/font: no render-blocking stylesheet and no
+// third-party request at runtime, which keeps the privacy page's promise honest.
+// Both families ship as variable fonts, so one file per family covers the whole
+// weight range the site uses (Inter 300-800, JetBrains Mono 400-600).
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-inter',
+  fallback: ['system-ui', '-apple-system', 'Segoe UI', 'sans-serif'],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-jetbrains-mono',
+  fallback: ['ui-monospace', 'monospace'],
+});
 
 const SITE_URL = SITE.url;
 
@@ -30,12 +49,7 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-      </head>
+    <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
       <body>
         <a href="#main-content" className="skip-link">Skip to main content</a>
         {children}

@@ -32,7 +32,7 @@ function trackCta(name, meta = {}) {
 
 const CSS = `
   .cr-root { --bg:${C.bg}; --surface:${C.surface}; --surface2:${C.surface2}; --border:${C.border}; --border2:${C.border2}; --text:${C.text}; --text2:${C.text2}; --text3:${C.text3}; --text4:${C.text4}; --accent:${C.accent}; --accent-soft:${C.accentSoft}; --green:${C.green};
-    background:var(--bg); color:var(--text); font-family:'Inter',system-ui,-apple-system,"Segoe UI",sans-serif; overflow-x:hidden; -webkit-font-smoothing:antialiased; }
+    background:var(--bg); color:var(--text); font-family:var(--font-inter); overflow-x:hidden; -webkit-font-smoothing:antialiased; }
   .cr-root *:focus-visible { outline:2px solid var(--accent); outline-offset:3px; border-radius:6px; }
   .cr-wrap { max-width:1180px; margin:0 auto; padding:0 24px; }
   .cr-section { padding:80px 0; }
@@ -60,7 +60,7 @@ const CSS = `
   .cr-doc-body p { font-size:13px; line-height:1.7; color:var(--text2); margin:0 0 10px; }
   .cr-doc-body p:last-child { margin-bottom:0; }
   .cr-doc-foot { padding:10px 16px; border-top:1px solid var(--border); font-size:11px; color:var(--text4); display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-  .cr-merge { background:rgba(245,158,11,0.16); color:#fcd34d; padding:0 4px; border-radius:4px; font-family:'JetBrains Mono',ui-monospace,monospace; font-size:12px; }
+  .cr-merge { background:rgba(245,158,11,0.16); color:#fcd34d; padding:0 4px; border-radius:4px; font-family:var(--font-jetbrains-mono); font-size:12px; }
   .cr-tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:24px; }
   .cr-tab { padding:9px 16px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; border:1px solid var(--border); background:transparent; color:var(--text2); transition:all .15s ease; }
   .cr-tab[aria-selected="true"] { border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }

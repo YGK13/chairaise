@@ -3523,7 +3523,7 @@ function AppInner(){
   // If not authenticated, redirect to NextAuth sign-in
   if(!authed){
     if(typeof window!=="undefined")window.location.href="/auth/signin";
-    return(<div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",color:"var(--text)",fontFamily:"Inter,system-ui,sans-serif"}}>
+    return(<div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",color:"var(--text)",fontFamily:"var(--font-inter)"}}>
       <div style={{textAlign:"center"}}>
         <div style={{width:56,height:56,background:"var(--accent)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:20,color:"var(--bg)",margin:"0 auto 16px"}}>CR</div>
         <div style={{fontSize:14,color:"var(--text3)"}}>Redirecting to sign in...</div>
@@ -3534,7 +3534,7 @@ function AppInner(){
   // While the DB check + org hydration is in flight, hold on a loader so a
   // server-side org (and its donors) can resolve before we'd otherwise flash
   // the onboarding wizard or the empty-data importer.
-  if(dbLoading&&!donors)return(<div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",color:"var(--text)",fontFamily:"Inter,system-ui,sans-serif"}}>
+  if(dbLoading&&!donors)return(<div style={{height:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--bg)",color:"var(--text)",fontFamily:"var(--font-inter)"}}>
     <div style={{textAlign:"center"}}>
       <div style={{width:56,height:56,background:"var(--accent)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:20,color:"var(--bg)",margin:"0 auto 16px"}}>CR</div>
       <div style={{fontSize:14,color:"var(--text3)"}}>Loading your organization...</div>
@@ -3705,7 +3705,7 @@ function AppInner(){
               {g.shortcuts.map(s=>(
                 <div key={s.keys} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid var(--border)"}}>
                   <span style={{fontSize:12,color:"var(--text2)"}}>{s.desc}</span>
-                  <kbd style={{fontSize:11,fontWeight:600,background:"var(--surface2)",padding:"2px 8px",borderRadius:4,border:"1px solid var(--border)",fontFamily:"'JetBrains Mono',monospace",color:"var(--text)"}}>{s.keys}</kbd>
+                  <kbd style={{fontSize:11,fontWeight:600,background:"var(--surface2)",padding:"2px 8px",borderRadius:4,border:"1px solid var(--border)",fontFamily:"var(--font-jetbrains-mono)",color:"var(--text)"}}>{s.keys}</kbd>
                 </div>
               ))}
             </div>
