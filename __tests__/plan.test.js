@@ -39,6 +39,18 @@ describe("isOwnerEmail", () => {
     // not fooled by substring tricks
     expect(isOwnerEmail("yuri.kruman@gmail.com.evil.com")).toBe(false);
   });
+
+  it("matches owner domains exactly, not as a prefix or substring", () => {
+    expect(isOwnerEmail("a@ohrvishua.evil.com")).toBe(false);
+    expect(isOwnerEmail("anyone@ohrvishua.attacker.com")).toBe(false);
+    expect(isOwnerEmail("x@orvishua.co")).toBe(false);
+    expect(isOwnerEmail("x@orvishua.xyz")).toBe(false);
+    expect(isOwnerEmail("x@sub.ohrvishua.org")).toBe(false);
+    expect(isOwnerEmail("x@notohrvishua.org")).toBe(false);
+    expect(isOwnerEmail("x@ohrvishua.org.evil.com")).toBe(false);
+    expect(isOwnerEmail("ohrvishua.org")).toBe(false);
+    expect(isOwnerEmail("@ohrvishua.org")).toBe(false);
+  });
 });
 
 describe("resolvePlan", () => {
