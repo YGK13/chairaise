@@ -1,6 +1,14 @@
 // ============================================================
 // ChaiRaise — Email Sending API via Resend
 // POST /api/email — Send a real email to a donor
+//
+// Abuse guards (this route sends from the ChaiRaise domain when an org has no
+// mailbox connected, so it must not be an open relay):
+//   - org_id is REQUIRED and the caller must be a member of that org.
+//   - Every recipient must be an existing donor contact of that org.
+//   - At most MAX_RECIPIENTS per request; per-user hourly and per-org daily caps.
+//   - The sender display name is the org's own name (not client-chosen) and
+//     Reply-To is the signed-in user's address.
 // ============================================================
 import { Resend } from "resend";
 import { getDb } from "@/lib/db";
@@ -9,6 +17,10 @@ import { rateLimit, keyFromRequest } from "@/lib/rateLimit";
 import { denyIfNoOrgAccess } from "@/lib/authz";
 import { sendViaOrgSmtp } from "@/lib/mailer";
 import { logEvent, EVENTS } from "@/lib/track";
+
+const MAX_RECIPIENTS = 10;
+const ORG_DAILY_MAX = 200;
+const EMAIL_RE = /^[^\s@<>,;"]+@[^\s@<>,;"]+\.[^\s@<>,;"]+$/;
 
 export async function POST(req) {
   try {
@@ -35,19 +47,60 @@ export async function POST(req) {
 
     const body = await req.json();
     const {
-      to, subject, html, text, from_name, org_id, donor_id,
-      reply_to, template_id, campaign_id
+      to, subject, html, text, org_id, donor_id,
+      template_id, campaign_id
     } = body;
 
     if (!to || !subject || (!html && !text)) {
       return Response.json({ error: "to, subject, and html or text are required" }, { status: 400 });
     }
+    if (!org_id) {
+      return Response.json({ error: "org_id is required" }, { status: 400 });
+    }
+
+    const recipients = [...new Set((Array.isArray(to) ? to : [to]).map((r) => String(r).trim().toLowerCase()))];
+    if (recipients.length === 0 || recipients.length > MAX_RECIPIENTS || !recipients.every((r) => EMAIL_RE.test(r))) {
+      return Response.json(
+        { error: `Provide 1-${MAX_RECIPIENTS} valid recipient email addresses.` },
+        { status: 400 }
+      );
+    }
 
     // Tenant guard: you may only send in the context of an org you belong to.
-    if (org_id) {
-      const denied = await denyIfNoOrgAccess(session, org_id);
-      if (denied) return denied;
+    const denied = await denyIfNoOrgAccess(session, org_id);
+    if (denied) return denied;
+
+    // Recipients must be this org's own donor contacts (no arbitrary targets).
+    const sqlCheck = getDb();
+    const known = await sqlCheck`
+      SELECT DISTINCT LOWER(email) AS email FROM donors
+      WHERE org_id = ${org_id} AND LOWER(email) = ANY(${recipients})
+    `;
+    const knownSet = new Set(known.map((r) => r.email));
+    const unknown = recipients.filter((r) => !knownSet.has(r));
+    if (unknown.length > 0) {
+      return Response.json(
+        { error: "Recipients must be donors in this organization. Add them as donors first.", code: "recipient_not_donor" },
+        { status: 403 }
+      );
     }
+
+    // Per-org daily cap, on top of the per-user hourly limit above.
+    const orgRl = await rateLimit({
+      key: `email-org:${org_id}`,
+      max: ORG_DAILY_MAX,
+      windowMs: 24 * 60 * 60 * 1000,
+    });
+    if (!orgRl.ok) {
+      return Response.json(
+        { error: "This organization has reached its daily email limit." },
+        { status: 429, headers: { "Retry-After": String(orgRl.retryAfter) } },
+      );
+    }
+
+    // Sender display name is the org's own name, never client-supplied.
+    const orgRows = await sqlCheck`SELECT name FROM orgs WHERE id = ${org_id} LIMIT 1`;
+    const from_name = String(orgRows[0]?.name || "ChaiRaise").replace(/[<>"\r\n]/g, "").slice(0, 80);
 
     // ---- 1) Prefer the org's OWN mailbox (bring-your-own SMTP) ----
     // Donor outreach then comes from the fundraiser's real address, and the
@@ -56,11 +109,11 @@ export async function POST(req) {
     if (org_id) {
       try {
         sent = await sendViaOrgSmtp(org_id, {
-          to,
+          to: recipients,
           subject,
           html,
           text,
-          replyTo: reply_to || session.user.email,
+          replyTo: session.user.email,
           fromName: from_name,
         });
       } catch (smtpErr) {
@@ -85,11 +138,13 @@ export async function POST(req) {
 
       const { data, error } = await resend.emails.send({
         from: `${fromDisplay} <${fromAddress}>`,
-        to: Array.isArray(to) ? to : [to],
+        to: recipients,
         subject,
         html: html || undefined,
         text: text || undefined,
-        reply_to: reply_to || session.user.email,
+        // Resend SDK option is camelCase `replyTo`; `reply_to` was silently
+        // dropped, so donor replies went to the platform sender.
+        replyTo: session.user.email,
       });
 
       if (error) {
@@ -100,7 +155,7 @@ export async function POST(req) {
     }
 
     // Log the outreach in the database if we have org context
-    if (org_id && donor_id) {
+    if (donor_id) {
       try {
         const sql = getDb();
         await sql`
@@ -113,7 +168,7 @@ export async function POST(req) {
         `;
         await sql`
           INSERT INTO audit_log (org_id, user_name, type, action, detail)
-          VALUES (${org_id}, ${session.user.name || session.user.email}, 'email', 'Email sent', ${to + ': ' + subject})
+          VALUES (${org_id}, ${session.user.name || session.user.email}, 'email', 'Email sent', ${recipients.join(', ') + ': ' + subject})
         `;
       } catch (dbErr) {
         // Don't fail the email send if logging fails
@@ -122,14 +177,14 @@ export async function POST(req) {
     }
 
     // Usage signal — real donor outreach sent (deepest activation step).
-    logEvent({ email: session.user.email, orgId: org_id || null, event: EVENTS.EMAIL_SENT, meta: { via: sent.via } });
+    logEvent({ email: session.user.email, orgId: org_id, event: EVENTS.EMAIL_SENT, meta: { via: sent.via } });
 
     return Response.json({
       success: true,
       email_id: sent.id,
       via: sent.via,        // "smtp" = sent from the org's own mailbox
       from: sent.from,
-      to,
+      to: recipients,
       subject,
       sent_at: new Date().toISOString()
     });

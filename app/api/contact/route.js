@@ -56,7 +56,7 @@ export async function POST(req) {
     const { error } = await resend.emails.send({
       from: `ChaiRaise <${FROM}>`,
       to: [TO],
-      reply_to: email,
+      replyTo: email,
       subject: `ChaiRaise inquiry${plan ? ` (${plan})` : ""} — ${safe(name) || email}`,
       html: `
         <h2>New ChaiRaise inquiry</h2>
