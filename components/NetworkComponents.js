@@ -774,10 +774,9 @@ function GmailIntegration({graphContacts,setGraphContacts,donors,rebuildGraph}){
 
     <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
       <button className="btn btn-primary btn-sm" onClick={importFromHeaders} disabled={!headerText.trim()}>📥 Import from Headers</button>
-      {apiKey&&<button className="btn btn-ghost btn-sm" onClick={aiExtractContacts} disabled={!headerText.trim()||aiExtracting}>
+      <button className="btn btn-ghost btn-sm" onClick={aiExtractContacts} disabled={!headerText.trim()||aiExtracting}>
         {aiExtracting?"⏳ Extracting...":"⚡ AI Extract (Claude)"}
-      </button>}
-      {!apiKey&&<span style={{fontSize:11,color:"var(--text4)",alignSelf:"center"}}>Set API key in Settings for AI extraction</span>}
+      </button>
     </div>
 
     {syncResult&&<div style={{marginTop:8,padding:"8px 12px",borderRadius:"var(--radius-sm)",fontSize:12,background:syncResult.error?"var(--red-soft)":"var(--green-soft)",color:syncResult.error?"var(--red)":"var(--green)"}}>

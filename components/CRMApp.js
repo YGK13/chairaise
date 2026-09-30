@@ -12,7 +12,7 @@ import {EmailConnectPanel,DataPrivacyPanel,WhatsAppButton} from "@/components/Tr
 // Shared modules (extracted from monolith)
 import {DEFAULT_TEMPLATES,DEFAULT_COMMUNITY_MAP,STAGES,TIERS,NAV,DONOR_FIELDS,FIELD_GROUPS,ACT_TYPES,ORG_TYPES,DEFAULT_ORG,EMPTY_ORG_PROFILE,ROLES,TAG_COLORS} from "@/lib/constants";
 import {orgPrefix,sGet,sSet,sGetMigrate,getActiveOrg,setActiveOrg,getOrgList,setOrgList,getOrgProfile,setOrgProfileStore,getOrgTemplates,getOrgCommunityMap,getSession,setSession,clearSession,getUsers,setUsers,hasPermission,getAuditLog,appendAudit,fmt$,fmtD,fmtN,initials} from "@/lib/storage";
-import {callAI,aiResearchOrg,causeMatch,aiGenerateBrief,aiTemplate,aiScore,aiLikelihood,aiAsk} from "@/lib/ai";
+import {aiDraftEmail,aiResearchOrg,causeMatch,aiGenerateBrief,aiTemplate,aiScore,aiLikelihood,aiAsk} from "@/lib/ai";
 import {parseCSV,exportToCSV} from "@/lib/csv";
 import {parseVCF,parseLinkedInCSV,levenshtein,normPhone,fuzzyMatchDonor,inferEdges,edgeStrength,bfsPath,buildGraph} from "@/lib/graph";
 // Extracted component modules
@@ -831,15 +831,13 @@ function BatchEmailComposer({donors,apiKey,onSend,onClose}){
   const generateAll=async()=>{
     setLoading(true);
     const t=TEMPLATES.find(x=>x.id===tmpl);
-    // Generate a generic template
     const bOrg=getActiveOrg();const bProfile=getOrgProfile();
-    const prompt=`You are a fundraising copywriter for ${bOrg.name}${bProfile.mission?" — "+bProfile.mission:""}. Write a compelling outreach email template.\nTemplate: ${t?.name} — ${t?.segment}\nHooks: ${t?.hooks}\n\nWrite the email body with merge fields: {name}, {community}, {city}. 150-200 words. Warm, personal, compelling. End with CTA for a meeting. Sign as "${bOrg.name} Development Team".`;
     try{
-      // Routed through /api/ai — the API key stays on the server and donor data
-      // never leaves our boundary via an unaudited client-side call.
-      const text=await callAI(prompt);
-      setBody(text||"");
-      setSubj((t?.subject||getActiveOrg().name+" — {name}").replace("{School}","").replace("{Synagogue}","").replace("{Family}",""));
+      // Server-owned drafting task in batch mode: returns a reusable template
+      // with {name}, {community}, {city} merge fields and a matching subject.
+      const draft=await aiDraftEmail({donor:{},org:bOrg,orgProfile:bProfile,template:t,mode:"batch"});
+      setBody(draft.body||"");
+      setSubj(draft.subject||(t?.subject||bOrg.name+" — {name}").replace("{First}","{name}").replace("{OrgName}",bOrg.name||"").replace("{School}","").replace("{Synagogue}","").replace("{Family}",""));
     }catch(e){alert("AI Error: "+e.message)}finally{setLoading(false)}
   };
 
@@ -1731,33 +1729,37 @@ function DonorDetail({donor:d,acts,notes,donors:allDonors,onClose,onNote,onStage
 // ============================================================
 // COMPONENT: EmailComposer (AI-powered modal)
 // ============================================================
-function EmailComposer({donor:d,apiKey,pplxKey,aiProvider,onClose,onSend}){
+function EmailComposer({donor:d,acts=[],onClose,onSend}){
   const[tmpl,setTmpl]=useState(d?aiTemplate(d):"T-E");
   const[subj,setSubj]=useState("");const[body,setBody]=useState("");
   const[loading,setLoading]=useState(false);const[err,setErr]=useState("");
-  // Read org profile for dynamic context (personalized per org)
-  const orgProfile=sGet("org_profile",{});
+  // Org-scoped profile (mission, programs, talking points) feeds the draft.
+  const orgProfile=getOrgProfile();
   const org=getActiveOrg();
+  const hasProfile=!!(orgProfile.mission||(orgProfile.key_programs||[]).length);
+  // AI keys live on the server — no client-side key check. The prompt itself
+  // is built server-side (lib/aiTasks.js) and is aware of the pipeline stage.
   const gen=async()=>{
-    const activeKey=aiProvider==="perplexity"?pplxKey:apiKey;
-    if(!activeKey){setErr(`Set ${aiProvider==="perplexity"?"Perplexity":"Anthropic"} API key in Settings first.`);return;}
     setLoading(true);setErr("");
     const t=TEMPLATES.find(x=>x.id===tmpl);
-    const orgCtx=orgProfile.mission?`Organization: ${org.name}\nMission: ${orgProfile.mission}\nKey Programs: ${(orgProfile.key_programs||[]).join(", ")}\nTalking Points: ${(orgProfile.talking_points||[]).join("; ")}`:`Organization: ${org.name} — ${org.tagline||"Jewish nonprofit fundraising"}`;
-    const prompt=`You are a world-class fundraising copywriter. Write a personalized outreach email.\n\n${orgCtx}\n\nDonor Profile:\nName: ${d.name}\nCommunity: ${d.community||"Unknown"}\nIndustry: ${d.industry||"Unknown"}\nNet Worth: ${fmt$(d.net_worth)}\nAnnual Giving: ${fmt$(d.annual_giving)}\nFocus: ${(d.focus_areas||[]).join(", ")}\nConnectors: ${(d.connector_paths||[]).map(c=>c.name+" ("+c.role+")").join(", ")}\nTemplate: ${t?.name} — ${t?.segment}\nHooks: ${t?.hooks}\n\nWrite ONLY the email body. Be warm, personal, compelling. Reference specific donor details and the org's mission. 150-250 words. End with a clear CTA for a meeting. Sign as the sender from ${org.name} Development team.`;
+    const recentActivity=acts.filter(a=>a.did===(d.id||d.name)).sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,5)
+      .map(a=>`${fmtD(a.date)} — ${a.type||"note"}: ${a.summary||a.subj||a.text||""}`);
     try{
-      const result=await callAI(prompt,aiProvider,apiKey,pplxKey);
-      setBody(result);
-      setSubj((t?.subject||"").replace("{First}",d.name?.split(" ")[0]||"").replace("{School}",d.school||d.community||"").replace("{Synagogue}",d.community||"").replace("{Family}",d.name?.split(" ").pop()||""));
+      const draft=await aiDraftEmail({donor:d,org,orgProfile,template:t,recentActivity});
+      setBody(draft.body);
+      const fallbackSubj=(t?.subject||"").replace("{First}",d.name?.split(" ")[0]||"").replace("{School}",d.school||d.community||"").replace("{Synagogue}",d.community||"").replace("{Family}",d.name?.split(" ").pop()||"").replace("{OrgName}",org.name||"").replace("{Community}",d.community||"");
+      setSubj(draft.subject||fallbackSubj);
     }catch(e){setErr(e.message)}finally{setLoading(false)}
   };
-  const providerLabel=aiProvider==="perplexity"?"Perplexity Sonar":"Claude Sonnet 4";
+  const providerLabel="Claude";
   return(<div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
     <div className="modal-header"><h3>✉️ Compose — {d?.name}</h3><div className="detail-close" onClick={onClose}>✕</div></div>
     <div className="modal-body">
       {err&&<div style={{background:"var(--red-soft)",color:"var(--red)",padding:"8px 12px",borderRadius:"var(--radius-sm)",marginBottom:12,fontSize:12}}>{err}</div>}
       <div className="form-group"><label className="form-label">Template</label><select className="form-select" value={tmpl} onChange={e=>setTmpl(e.target.value)}>{TEMPLATES.map(t=><option key={t.id} value={t.id}>{t.id}: {t.name}</option>)}</select></div>
-      <div style={{marginBottom:12}}><button className="btn btn-primary" onClick={gen} disabled={loading}>{loading?"⏳ Generating...":"⚡ Generate with AI"}</button><span className="ai-badge" style={{marginLeft:8}}>{providerLabel}</span></div>
+      <div style={{marginBottom:12}}><button className="btn btn-primary" onClick={gen} disabled={loading}>{loading?"⏳ Drafting...":body?"↻ Regenerate":"⚡ Draft with AI"}</button><span className="ai-badge" style={{marginLeft:8}}>{providerLabel}</span></div>
+      {!hasProfile&&<div style={{fontSize:11,color:"var(--text3)",marginBottom:12}}>Tip: add your mission and programs in Admin → Org Profile so drafts can speak to your actual work.</div>}
+      {body&&<div style={{fontSize:11,color:"var(--text3)",marginBottom:8}}>AI draft — uses only facts from this donor record and your org profile. Review before sending.</div>}
       <div className="form-group"><label className="form-label">Subject</label><input className="form-input" value={subj} onChange={e=>setSubj(e.target.value)} placeholder="Subject..."/></div>
       <div className="form-group"><label className="form-label">Body</label><textarea className="form-textarea" value={body} onChange={e=>setBody(e.target.value)} placeholder="AI-generated or type manually..." style={{minHeight:200}}/></div>
     </div>
@@ -3657,7 +3659,7 @@ function AppInner(){
     {selD&&<DonorDetail donor={selD} acts={acts} notes={notes} donors={donors} onClose={()=>setSelD(null)} onNote={addNote} onStage={chgStage} onCompose={d=>{setCompD(d)}} onEdit={d=>setDonorForm({donor:d})} onLogActivity={logActivity}/>}
 
     {/* EMAIL MODAL */}
-    {compD&&<EmailComposer donor={compD} apiKey={apiKey} pplxKey={pplxKey} aiProvider={aiProvider} onClose={()=>setCompD(null)} onSend={sendEmail}/>}
+    {compD&&<EmailComposer donor={compD} acts={acts} onClose={()=>setCompD(null)} onSend={sendEmail}/>}
 
     {/* ADD/EDIT DONOR MODAL */}
     {donorForm!==null&&<DonorFormModal donor={donorForm.donor||null} onSave={saveDonor} onClose={()=>setDonorForm(null)}/>}

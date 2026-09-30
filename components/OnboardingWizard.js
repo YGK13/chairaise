@@ -26,8 +26,7 @@ function OnboardingWizard({onComplete,onSkip}){
   const steps=["Welcome","Organization","AI Research","Data","AI Features","Ready"];
 
   const runResearch=async()=>{
-    const activeKey=aiProv==="perplexity"?pplxK:apiKey;
-    if(!activeKey){setResearchErr("Enter an API key first (step 5) or skip this step.");return}
+    // AI keys are server-side; no client key is needed to run research.
     setResearching(true);setResearchErr("");
     setResearchProgress("Analyzing organization...");
     try{
@@ -164,7 +163,7 @@ function OnboardingWizard({onComplete,onSkip}){
               <button className="btn btn-primary" onClick={runResearch}>⚡ Run AI Research</button>
               {researchErr&&<div style={{marginTop:8,fontSize:12,color:"var(--red)"}}>{researchErr}</div>}
             </div>
-            <div style={{fontSize:11,color:"var(--text4)",textAlign:"center"}}>No API key yet? Skip this step and run research later from Admin → Org Profile</div>
+            <div style={{fontSize:11,color:"var(--text4)",textAlign:"center"}}>In a hurry? Skip this step and run research later from Admin → Org Profile</div>
           </>}
 
           {researching&&<div style={{textAlign:"center",padding:32}}>

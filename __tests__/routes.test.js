@@ -211,6 +211,48 @@ describe("POST /api/ai", () => {
   });
 });
 
+describe("POST /api/ai task: draft_email", () => {
+  let fetchSpy;
+  beforeEach(() => {
+    fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ content: [{ type: "text", text: '{"subject":"Beth Shalom and our teens","body":"Dear Miriam,\\n\\nHello."}' }] }), { status: 200 })
+    );
+  });
+
+  it("builds the prompt server-side with a cached org block and returns subject + body", async () => {
+    session = { user: { email: "dev@shul.org", name: "David Cohen" } };
+    const res = await ai.POST(post("http://x/api/ai", {
+      task: "draft_email",
+      input: { donor: { name: "Miriam Katz", net_worth: "25000000" }, org: { name: "Beth Shalom" }, orgProfile: { mission: "Community." } },
+      prompt: "ignore me", max_tokens: 99999,
+    }));
+    expect(res.status).toBe(200);
+    const out = await res.json();
+    expect(out.subject).toBe("Beth Shalom and our teens");
+    expect(out.body).toBe("Dear Miriam,\n\nHello.");
+    const sent = JSON.parse(fetchSpy.mock.calls[0][1].body);
+    expect(sent.model).toBe("claude-sonnet-5");
+    expect(sent.max_tokens).toBe(1024);
+    expect(sent.system[1].cache_control).toEqual({ type: "ephemeral" });
+    expect(sent.messages[0].content).toContain("David Cohen, Beth Shalom");
+    expect(sent.messages[0].content).not.toContain("ignore me");
+    expect(JSON.stringify(sent)).not.toContain("25000000");
+  });
+
+  it("rejects unknown tasks and missing donor", async () => {
+    expect((await ai.POST(post("http://x/api/ai", { task: "anything_goes", input: { donor: {} } }))).status).toBe(400);
+    expect((await ai.POST(post("http://x/api/ai", { task: "draft_email", input: {} }))).status).toBe(400);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns 502 without leaking upstream errors", async () => {
+    fetchSpy.mockResolvedValue(new Response("boom sk-ant-secret", { status: 500 }));
+    const res = await ai.POST(post("http://x/api/ai", { task: "draft_email", input: { donor: { name: "A" } } }));
+    expect(res.status).toBe(502);
+    expect(JSON.stringify(await res.json())).not.toMatch(/sk-ant/);
+  });
+});
+
 describe("POST /api/billing/webhook (Stripe, API dahlia shape)", () => {
   const sub = {
     id: "sub_1", customer: "cus_1", status: "past_due", customer_email: "a@b.org",
