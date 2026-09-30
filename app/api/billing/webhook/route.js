@@ -6,7 +6,7 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { upsertSubscription } from "@/lib/db";
-import { isChaiRaiseSubscription } from "@/lib/plan";
+import { isChaiRaiseSubscription, planForSubscription, subscriptionPeriodEnd, invoiceSubscriptionId } from "@/lib/plan";
 import { logEvent, EVENTS } from "@/lib/track";
 
 // Accept either the canonical STRIPE_SECRET_KEY or the STRIPE_SECRET_API_KEY alias.
@@ -52,9 +52,12 @@ async function persistSubscription(subscription, emailOverride) {
     org_id: subscription.metadata?.chairaise_org_id || "",
     stripe_customer_id: subscription.customer || "",
     stripe_subscription_id: subscription.id || "",
-    plan: subscription.metadata?.chairaise_plan || "pro",
+    // Plan comes from the price actually billed, never from metadata.
+    plan: planForSubscription(subscription),
     status: subscription.status || "active",
-    current_period_end: toDate(subscription.current_period_end),
+    // Stripe API 2025-03-31+ (incl. our 2026-03-25.dahlia): period end lives
+    // on the subscription ITEMS; the top-level field is gone.
+    current_period_end: toDate(subscriptionPeriodEnd(subscription)),
     trial_end: toDate(subscription.trial_end),
     cancel_at_period_end: !!subscription.cancel_at_period_end,
   });
@@ -127,7 +130,7 @@ export async function POST(req) {
             email: subEmail,
             orgId: subscription.metadata?.chairaise_org_id || null,
             event: EVENTS.SUBSCRIBED,
-            meta: { plan: subscription.metadata?.chairaise_plan || "pro", status: subscription.status },
+            meta: { plan: planForSubscription(subscription), status: subscription.status },
           });
         }
         break;
@@ -144,8 +147,11 @@ export async function POST(req) {
       case "invoice.payment_failed": {
         const invoice = event.data.object;
         console.log(`[Billing] Payment failed for customer ${invoice.customer}`);
-        if (invoice.subscription) {
-          const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+        // Current API: invoice.parent.subscription_details.subscription
+        // (invoice.subscription was removed, so this branch was a no-op).
+        const subscriptionId = invoiceSubscriptionId(invoice);
+        if (subscriptionId) {
+          const subscription = await stripe.subscriptions.retrieve(subscriptionId);
           await persistSubscription(subscription);
         }
         break;

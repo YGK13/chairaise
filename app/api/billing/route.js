@@ -6,7 +6,8 @@
 import Stripe from "stripe";
 import { auth } from "@/lib/auth";
 import { NextResponse } from "next/server";
-import { isOwnerEmail, resolvePlan, planMeta } from "@/lib/plan";
+import { isOwnerEmail, resolvePlan, planMeta, planForPriceId, planForSubscription, subscriptionPeriodEnd, isChaiRaiseSubscription } from "@/lib/plan";
+import { canAccessOrg } from "@/lib/authz";
 import { getSubscriptionByEmail } from "@/lib/db";
 import { logEvent, EVENTS } from "@/lib/track";
 
@@ -64,16 +65,23 @@ export async function POST(req) {
 
   try {
     const body = await req.json();
-    const { orgId, orgName, plan } = body;
+    // NOTE: any client-supplied `plan` is ignored. The plan is derived
+    // server-side from the Stripe Price being purchased.
+    const { orgId, orgName } = body;
 
-    // Determine price based on plan
-    // In production, use Stripe Price IDs from environment variables
+    // Only one purchasable price today (Pro). Plan is mapped from the price id.
     const priceId = process.env.STRIPE_PRO_PRICE_ID;
     if (!priceId) {
       return NextResponse.json(
         { error: "Price not configured", hint: "Create a product in Stripe Dashboard and add STRIPE_PRO_PRICE_ID" },
         { status: 503 }
       );
+    }
+    const plan = planForPriceId(priceId) || "pro";
+
+    // The org attributed on the subscription must be one the caller belongs to.
+    if (orgId && !(await canAccessOrg(session.user.email, orgId))) {
+      return NextResponse.json({ error: "You don't have access to this organization." }, { status: 403 });
     }
 
     // Create or retrieve Stripe Customer
@@ -96,6 +104,15 @@ export async function POST(req) {
       });
     }
 
+    // One free trial per customer: skip the trial if this customer has ever
+    // had a ChaiRaise subscription (cancel-and-resubscribe must not re-trial).
+    // The Stripe account is shared across products, so only ours count.
+    let hadPriorSubscription = false;
+    if (customers.data.length > 0) {
+      const prior = await stripe.subscriptions.list({ customer: customer.id, status: "all", limit: 100 });
+      hadPriorSubscription = prior.data.some((s) => isChaiRaiseSubscription(s, priceId));
+    }
+
     // Create Checkout Session
     const baseUrl = process.env.NEXTAUTH_URL || "https://chairaise.com";
     const checkoutSession = await stripe.checkout.sessions.create({
@@ -112,22 +129,23 @@ export async function POST(req) {
       cancel_url: `${baseUrl}/?billing=cancelled`,
       metadata: {
         chairaise_org_id: orgId || "default",
-        chairaise_plan: plan || "pro",
+        chairaise_plan: plan,
       },
-      // Single subscription_data block: 14-day trial + metadata carried onto the
-      // subscription so the webhook can attribute it to the right org/plan.
+      // Single subscription_data block: 14-day trial (first subscription only)
+      // + metadata carried onto the subscription so the webhook can attribute
+      // it to the right org. The webhook derives the plan from the price.
       subscription_data: {
-        trial_period_days: 14,
+        ...(hadPriorSubscription ? {} : { trial_period_days: 14 }),
         metadata: {
           chairaise_org_id: orgId || "default",
-          chairaise_plan: plan || "pro",
+          chairaise_plan: plan,
         },
       },
     });
 
     // Revenue signal — a user reached the Stripe checkout for Pro. The webhook
     // later emits SUBSCRIBED when the trial/subscription actually starts.
-    logEvent({ email: session.user.email, orgId: orgId || null, event: EVENTS.CHECKOUT_STARTED, meta: { plan: plan || "pro" } });
+    logEvent({ email: session.user.email, orgId: orgId || null, event: EVENTS.CHECKOUT_STARTED, meta: { plan, trial: !hadPriorSubscription } });
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {
@@ -189,13 +207,13 @@ export async function GET() {
           (s) => s.status === "active" || s.status === "trialing"
         );
         if (activeSub) {
-          const planId = resolvePlan(email, activeSub.status, activeSub.metadata?.chairaise_plan);
+          const planId = resolvePlan(email, activeSub.status, planForSubscription(activeSub));
           return NextResponse.json(
             statusPayload(planId, {
               status: activeSub.status,
               trial_end: activeSub.trial_end ? new Date(activeSub.trial_end * 1000).toISOString() : null,
-              current_period_end: activeSub.current_period_end
-                ? new Date(activeSub.current_period_end * 1000).toISOString()
+              current_period_end: subscriptionPeriodEnd(activeSub)
+                ? new Date(subscriptionPeriodEnd(activeSub) * 1000).toISOString()
                 : null,
               cancel_at_period_end: activeSub.cancel_at_period_end,
               subscription_id: activeSub.id,
