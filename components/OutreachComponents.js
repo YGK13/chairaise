@@ -333,7 +333,6 @@ function OutreachCoach({donors,acts,graphData,graphContacts,apiKey,outreachLog,o
 
   // -- AI Coach: Generate personalized strategy --
   const getAIStrategy=async(donor)=>{
-    if(!apiKey){setCoachResponse("Set API key in Settings first.");return}
     setLoading(true);setSelectedDonor(donor);setCoachResponse("");
     const entry=computeOutreachScores.find(s=>s.donorId===(donor.id||donor.name));
     const path=graphData?.donorPaths?.[donor.id||donor.name];

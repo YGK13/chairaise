@@ -8,6 +8,7 @@ import { logEvent, EVENTS } from "@/lib/track";
 import {
   ALLOWED_PROVIDERS, MAX_PROMPT_CHARS, clampMaxTokens, resolveAnthropicModel,
 } from "@/lib/aiGuards";
+import { AI_TASKS, buildDraftEmailRequest, parseDraft, DRAFT_EMAIL_PROMPT_VERSION } from "@/lib/aiTasks";
 
 export async function POST(request) {
   try {
@@ -47,6 +48,12 @@ export async function POST(request) {
     }
 
     const body = await request.json();
+
+    // Server-owned tasks: the prompt is built here, not in the browser.
+    if (body.task !== undefined) {
+      return await runTask(body, session);
+    }
+
     const { prompt } = body;
     const provider = body.provider || "anthropic";
     const max_tokens = clampMaxTokens(body.max_tokens);
@@ -129,4 +136,71 @@ export async function POST(request) {
     console.error("AI API Error:", error);
     return Response.json({ error: "AI request failed" }, { status: 500 });
   }
+}
+
+// ============================================================
+// Server-owned task runner (currently: draft_email)
+// ============================================================
+async function runTask(body, session) {
+  if (!AI_TASKS.includes(body.task)) {
+    return Response.json({ error: "Unknown AI task" }, { status: 400 });
+  }
+  const input = body.input && typeof body.input === "object" ? body.input : {};
+  if (!input.donor || typeof input.donor !== "object") {
+    return Response.json({ error: "A donor is required to draft an email" }, { status: 400 });
+  }
+  const anthropicKey = process.env.ANTHROPIC_API_KEY || "";
+  if (!anthropicKey) {
+    return Response.json({
+      error: "AI drafting is not configured on the server yet",
+      hint: "Add ANTHROPIC_API_KEY to Vercel environment variables",
+    }, { status: 503 });
+  }
+
+  const { system, messages } = buildDraftEmailRequest({
+    donor: input.donor,
+    org: input.org || {},
+    orgProfile: input.orgProfile || {},
+    template: input.template || {},
+    recentActivity: input.recentActivity || [],
+    mode: input.mode === "batch" ? "batch" : "single",
+    senderName: session.user.name || "",
+  });
+  if (messages[0].content.length > MAX_PROMPT_CHARS) {
+    return Response.json({ error: "Donor record too large to draft from" }, { status: 413 });
+  }
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": anthropicKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: resolveAnthropicModel(process.env.ANTHROPIC_MODEL),
+      max_tokens: 1024,
+      // Static guidelines + per-org profile; the org block carries the cache
+      // breakpoint so every draft for the same org reuses the prefix.
+      system,
+      messages,
+    }),
+  });
+  if (!res.ok) {
+    console.error("[AI] Anthropic task error", res.status, (await res.text()).slice(0, 500));
+    return Response.json({ error: "AI provider error. Please try again." }, { status: 502 });
+  }
+  const data = await res.json();
+  const text = (data.content || []).filter((b) => b.type === "text" || b.text).map((b) => b.text || "").join("");
+  const draft = parseDraft(text);
+  if (!draft.body) {
+    return Response.json({ error: "The AI returned an empty draft. Please try again." }, { status: 502 });
+  }
+
+  logEvent({
+    email: session.user.email,
+    event: EVENTS.AI_USED,
+    meta: { provider: "anthropic", task: body.task, mode: input.mode === "batch" ? "batch" : "single", prompt: DRAFT_EMAIL_PROMPT_VERSION },
+  });
+  return Response.json({ subject: draft.subject, body: draft.body, result: draft.body });
 }
